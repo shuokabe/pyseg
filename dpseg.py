@@ -32,7 +32,9 @@ class Lexicon: # Improved dictionary using a Counter
         parameters of the whole lexicon.
         '''
         self.lexicon[word] += 1 # = self.lexicon[word] + 1
-        self.update_lex_size()
+        #self.update_lex_size()
+        self.n_types = len(self.lexicon)
+        self.n_tokens += 1 # Add one token
 
     def remove_one(self, word):
         '''
@@ -44,11 +46,13 @@ class Lexicon: # Improved dictionary using a Counter
             self.lexicon[word] += -1 #= self.lexicon[word] - 1
         elif (self.lexicon[word] == 1): # If the count for the word is 0
             del self.lexicon[word]
+            self.n_types += -1 # # Remove the word from the lexicon
         else:
             raise KeyError('The word %s is not in the lexion.' % word)
         #+self.lexicon # Remove types with 0 occurrence
         #self.lexicon = self.lexicon - collections.Counter(word = 1)
-        self.update_lex_size()
+        #self.update_lex_size()
+        self.n_tokens += -1 # Remove one token
 
     def init_lexicon_text(self, text):
         '''
@@ -92,7 +96,6 @@ class State: # Information on the whole document
         self.n_utterances = len(self.utterances) # # Number of utterances
 
 
-
         # Lexicon object (Counter)
         self.word_counts = Lexicon() # Word counter
         init_segmented_list = utils.text_to_line(self.get_segmented())
@@ -119,8 +122,7 @@ class State: # Information on the whole document
             #ntokens = true_words_ps.ntokens()
         #self.init_phoneme_probs()
 
-
-    def init_phoneme_probs(self): #
+    def init_phoneme_probs(self):
         '''
         Computes (uniform distribution)
         to complete
@@ -140,7 +142,6 @@ class State: # Information on the whole document
         utils.check_probability(p)
         return p
 
-
     def p_word(self, string):
         '''
         Computes the prior probability of a string of length n:
@@ -156,7 +157,6 @@ class State: # Information on the whole document
     # Sampling
     def sample(self, temp):
         #word_counts.check_invariant() #
-
         # The input text is the unsegmented text in a list type
 
         utils.check_equality(len(self.boundaries), self.n_utterances) # See if needed
@@ -250,12 +250,12 @@ class Utterance: # Information on one utterance of the document
 
     def left_word(self, i):
         utils.check_value_between(i, 0, len(self.sentence)) # Unsure for unsegmented length
-        prev = self.prev_boundary(i) #
+        prev = self.prev_boundary(i)
         return self.sentence[(prev + 1):(i + 1)] # unsure
 
     def right_word(self, i):
         utils.check_value_between(i, 0, len(self.sentence))# - 1) # Unsure for unsegmented length
-        next = self.next_boundary(i) #
+        next = self.next_boundary(i) 
         return self.sentence[(i + 1):(next + 1)] # unsure
 
     def centre_word(self, i):

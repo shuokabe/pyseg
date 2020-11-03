@@ -9,7 +9,11 @@ from pyseg.dpseg import State
 from pyseg import utils
 
 # General setup of libraries
-logging.basicConfig(level = logging.DEBUG, format='[%(asctime)s] %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
+logging.basicConfig(level = logging.DEBUG,
+                    filename = 'pyseg.log',
+                    filemode = 'w',
+                    format = '[%(asctime)s] %(message)s',
+                    datefmt = '%d/%m/%Y %H:%M:%S')
 
 # Corresponds to the segment file
 
@@ -23,6 +27,8 @@ def parse_args():
                         help='prior probability of word boundary')
     parser.add_argument('-i', '--iterations', default=100, type=int,
                         help='number of iterations')
+    parser.add_argument('-o', '--output_file_base', default='output', type=str,
+                        help='Output filename (base)')
     parser.add_argument('-r', '--rnd_seed', default=42, type=int,
                         help='random seed')
 
@@ -47,7 +53,7 @@ def main():
 
     #set_init(b_init) # Copy from segment.cc
     # No set_models since it doesn't seem to be useful with just the unigram case
-    main_state = State(data, alpha_1 = args.alpha_1, p_boundary = args.p_boundary) #
+    main_state = State(data, alpha_1 = args.alpha_1, p_boundary = args.p_boundary)
 
     iters = args.iterations #
     logging.info('Sampling {:d} iterations.'.format(iters))
@@ -82,7 +88,8 @@ def main():
 
     segmented_pydpseg = utils.text_to_line(main_state.get_segmented())
 
-    with open('pydpseg_test.txt', 'w') as out_text:
+    output_file = args.output_file_base + '.txt'
+    with open(output_file, 'w') as out_text:
         out_text.write('\n'.join(segmented_pydpseg))
 
 if __name__ == "__main__":
