@@ -6,6 +6,7 @@ from tqdm import tqdm # Progress bar
 
 #from pyseg import dpseg
 from pyseg.dpseg import State
+from pyseg.analysis import Statistics, evaluate
 from pyseg import utils
 
 # General setup of libraries
@@ -36,23 +37,22 @@ def parse_args():
 
 
 def main():
-
     args = parse_args()
 
     # Input file
-    filename = args.filename #'../Summer exp 2020/mboshi_0.5_letter.word' #
+    filename = args.filename #'../Summer exp 2020/mboshi_0.5_letter.word'
 
     # Seed
-    rnd_seed = args.rnd_seed #42 #
+    rnd_seed = args.rnd_seed #42
     random.seed(rnd_seed)
 
-    data = open(filename, 'r').read()  # Add the preprocessing function
+    data = open(filename, 'r', encoding = 'utf8').read()
 
     logging.info('Segmenting {:s} using unigram model.'.format(filename))
     logging.info('Boundary initialisation: random') #
 
     #set_init(b_init) # Copy from segment.cc
-    # No set_models since it doesn't seem to be useful with just the unigram case
+    # No set_models since it doesn't seem to be useful for the unigram case
     main_state = State(data, alpha_1 = args.alpha_1, p_boundary = args.p_boundary)
 
     iters = args.iterations #
@@ -72,7 +72,6 @@ def main():
     temperatures = np.linspace(0.1, 1, temp_incr)
     logging.info('Raising temperature in {0:d} increments: {1}'.format(temp_incr, temperatures))
 
-
     # Begin sampling loop
     temp_index = 0
     temp = temperatures[temp_index]
@@ -86,11 +85,21 @@ def main():
         main_state.sample(temp)
     logging.info('{:d} iterations'.format(iters))
 
-    segmented_pydpseg = utils.text_to_line(main_state.get_segmented())
+    segmented_text = main_state.get_segmented()
 
     output_file = args.output_file_base + '.txt'
-    with open(output_file, 'w') as out_text:
-        out_text.write('\n'.join(segmented_pydpseg))
+    with open(output_file, 'w',  encoding = 'utf8') as out_text:
+        out_text.write(segmented_text)
+
+    # Statistics
+    stats = Statistics(segmented_text)
+    #print('State and stats:', main_state.word_counts.lexicon == stats.lexicon)
+    logging.info('Statistics: %s' % (stats.stats))
+
+    # Evaluation results
+    results = evaluate(data, segmented_text)
+    logging.info('Evaluation metrics: %s' % results)
+
 
 if __name__ == "__main__":
     main()

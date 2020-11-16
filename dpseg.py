@@ -3,14 +3,24 @@ import collections
 import logging
 
 from pyseg import utils
-from pyseg import datafile
+#from pyseg import datafile
 
 # dpseg model
 
-logging.basicConfig(level = logging.DEBUG, format='[%(asctime)s] %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
+logging.basicConfig(level = logging.DEBUG, format = '[%(asctime)s] %(message)s',
+                    datefmt = '%d/%m/%Y %H:%M:%S')
 
 
 class Lexicon: # Improved dictionary using a Counter
+    '''
+    Keeps track of the lexicon in the dpseg model, using a Counter object.
+
+    lexicon (Counter): improved dictionary where each word is associated to
+        its frequency.
+    n_types (int): number of types in the lexicon.
+    n_tokens (int): number of tokens in the lexicon.
+
+    '''
     def __init__(self):
         self.lexicon = collections.Counter()
 
@@ -21,6 +31,7 @@ class Lexicon: # Improved dictionary using a Counter
     def update_lex_size(self):
         '''
         Updates the two parameters storing the number of tokens and of types.
+
         To use after any modification of the lexicon.
         '''
         self.n_types = len(self.lexicon)
@@ -31,7 +42,7 @@ class Lexicon: # Improved dictionary using a Counter
         Adds one count to a given word in the lexicon and updates the size
         parameters of the whole lexicon.
         '''
-        self.lexicon[word] += 1 # = self.lexicon[word] + 1
+        self.lexicon[word] += 1
         #self.update_lex_size()
         self.n_types = len(self.lexicon)
         self.n_tokens += 1 # Add one token
@@ -43,12 +54,12 @@ class Lexicon: # Improved dictionary using a Counter
         if the count is 0.
         '''
         if self.lexicon[word] > 1:
-            self.lexicon[word] += -1 #= self.lexicon[word] - 1
+            self.lexicon[word] += -1
         elif (self.lexicon[word] == 1): # If the count for the word is 0
             del self.lexicon[word]
             self.n_types += -1 # # Remove the word from the lexicon
         else:
-            raise KeyError('The word %s is not in the lexion.' % word)
+            raise KeyError('The word %s is not in the lexicon.' % word)
         #+self.lexicon # Remove types with 0 occurrence
         #self.lexicon = self.lexicon - collections.Counter(word = 1)
         #self.update_lex_size()
@@ -62,7 +73,7 @@ class Lexicon: # Improved dictionary using a Counter
         for line in text:
             split_line = utils.line_to_word(line)
             counter += collections.Counter(split_line) # Keep counter type
-        self.lexicon = counter #dict(counter)
+        self.lexicon = counter
         self.update_lex_size()
 
 
@@ -79,9 +90,9 @@ class State: # Information on the whole document
         logging.info(' alpha_1: {0:d}, p_boundary: {1:.1f}'.format(self.alpha_1, self.p_boundary))
 
         # Data and Utterance object
-        self.unsegmented = datafile.unsegmented(data)
-        self.unsegmented_list = utils.text_to_line(self.unsegmented)
-        self.unsegmented_list = utils.delete_value_from_vector(self.unsegmented_list, '') # Remove empty string
+        self.unsegmented = utils.unsegmented(data) #datafile.unsegmented(data)
+        self.unsegmented_list = utils.text_to_line(self.unsegmented, True) # Remove empty string
+        #self.unsegmented_list = utils.delete_value_from_vector(self.unsegmented_list, '') # Remove empty string
 
         # Variable to store alphabet, utterance, and lexicon information
         self.utterances = [] #? # Stored utterances
@@ -90,15 +101,15 @@ class State: # Information on the whole document
         for unseg_line in self.unsegmented_list: # rewrite with correct variable names
             # do next_reference function
             utterance = Utterance(unseg_line, p_boundary)
-            self.utterances += [utterance] # Is it a list?
+            self.utterances += [utterance]
             self.boundaries += [utterance.line_boundaries]
 
-        self.n_utterances = len(self.utterances) # # Number of utterances
-
+        self.n_utterances = len(self.utterances) # Number of utterances
 
         # Lexicon object (Counter)
         self.word_counts = Lexicon() # Word counter
-        init_segmented_list = utils.text_to_line(self.get_segmented())
+        init_segmented_list = utils.text_to_line(self.get_segmented(), True) # Remove empty string
+        #init_segmented_list = utils.delete_value_from_vector(init_segmented_list, '')
         self.word_counts.init_lexicon_text(init_segmented_list)
 
         # Alphabet (list of letters)
@@ -196,14 +207,9 @@ class Utterance: # Information on one utterance of the document
     def __init__(self, sentence, p_segment):
         self.sentence = sentence # Unsegmented utterance # Char
         self.p_segment = p_segment
-
         utils.check_probability(p_segment)
 
-        # List version of the unsegmented text
-        #self.utterance_list = utils.text_to_line(utterance)
-
         self.line_boundaries = [] # Test to store boundary existence
-
         self.init_boundary() #
 
     def init_boundary(self): # Random case only
@@ -242,11 +248,8 @@ class Utterance: # Information on one utterance of the document
                 #prev = curr # Previous word
             #pos += 1
 
-
-
     def numer_base(self, word, state):
         return state.word_counts.lexicon[word] + state.p_word(word)
-
 
     def left_word(self, i):
         utils.check_value_between(i, 0, len(self.sentence)) # Unsure for unsegmented length
@@ -255,7 +258,7 @@ class Utterance: # Information on one utterance of the document
 
     def right_word(self, i):
         utils.check_value_between(i, 0, len(self.sentence))# - 1) # Unsure for unsegmented length
-        next = self.next_boundary(i) 
+        next = self.next_boundary(i)
         return self.sentence[(i + 1):(next + 1)] # unsure
 
     def centre_word(self, i):
@@ -264,8 +267,7 @@ class Utterance: # Information on one utterance of the document
         next = self.next_boundary(i)
         return self.sentence[(prev + 1):(next + 1)] # unsure
 
-
-    def sample(self, state, temp): #, model_type=1):
+    def sample(self, state, temp):
         #if (model_type == 1): # Unigram model
         # Final boundary posn must always be true, so don't sample it. #
         #print('Utterance: ', self.sentence, 'boundary: ', self.line_boundaries)
@@ -273,7 +275,6 @@ class Utterance: # Information on one utterance of the document
 
         for i in range(len(self.line_boundaries) - 1): #
             self.sample_one(i, state, temp)
-
 
     def sample_one(self, i, state, temp):
         lexicon = state.word_counts
@@ -306,7 +307,6 @@ class Utterance: # Information on one utterance of the document
         # Annealing
         yes = yes ** temp
         no = no ** temp
-
         p_yes = yes / (yes + no)
         if (random.random() < p_yes):
             #print('Boundary case')
@@ -317,7 +317,6 @@ class Utterance: # Information on one utterance of the document
             #print('No boundary case')
             self.line_boundaries[i] = False
             lexicon.add_one(centre)
-
 
     #def log_posterior(self, n_utterances, lexicon, state): # Seems not to intervene
     #    pass
@@ -331,7 +330,6 @@ class Utterance: # Information on one utterance of the document
             if self.line_boundaries[j] == True:
                 return j
         return -1
-
 
     def next_boundary(self, i):
         '''

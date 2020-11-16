@@ -1,16 +1,27 @@
 import re
 
+# Functions for text data
+def unsegmented(text): # Raw string
+    '''
+    Returns the unsegmented version of a raw text (string).
+    '''
+    return text.replace(' ', '')
+
 
 # Splitting functions
-def text_to_line(raw_text):
-    '''
+def text_to_line(raw_text, remove_empty=True):
+    r'''
     Splits a raw text into a list of sentences (string) according to '\n'.
     '''
-    return re.split('\n', raw_text)
+    split_text = re.split('\n', raw_text)
+    if remove_empty: # To remove empty lines
+        return delete_value_from_vector(split_text, '')
+    else:
+        return split_text
 
 def line_to_word(raw_line):
     '''
-    Splits a raw sentence into a list of words (string) according to ' '.
+    Splits a raw sentence into a list of words (string) according to whitespace.
     '''
     return re.split(' ', raw_line)
 
