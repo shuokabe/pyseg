@@ -6,6 +6,7 @@ from tqdm import tqdm # Progress bar
 
 #from pyseg import dpseg
 from pyseg.dpseg import State
+from pyseg.pypseg import PYPState
 from pyseg.analysis import Statistics, evaluate
 from pyseg import utils
 
@@ -21,17 +22,22 @@ logging.basicConfig(level = logging.DEBUG,
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('filename', type=str, help='Path to file')
+    parser.add_argument('filename', type=str, help='path to file')
+    parser.add_argument('-m', '--model', default='dpseg', type=str,
+                        choices=['dpseg', 'pypseg'], help='model name')
     parser.add_argument('-a', '--alpha_1', default=20, type=int,
-                        help='total unigram generator weight')
+                        help='concentration parameter for unigram DP')
     parser.add_argument('-b', '--p_boundary', default=0.5, type=float,
                         help='prior probability of word boundary')
+    parser.add_argument('-d', '--discount', default=0.5, type=float,
+                        help='discount parameter for PYP model')
     parser.add_argument('-i', '--iterations', default=100, type=int,
                         help='number of iterations')
     parser.add_argument('-o', '--output_file_base', default='output', type=str,
-                        help='Output filename (base)')
+                        help='output filename (base)')
     parser.add_argument('-r', '--rnd_seed', default=42, type=int,
                         help='random seed')
+    parser.add_argument('--version', action='version', version='v1.0')
 
     return parser.parse_args()
 
@@ -47,15 +53,23 @@ def main():
     random.seed(rnd_seed)
 
     data = open(filename, 'r', encoding = 'utf8').read()
+    model_name = args.model
 
-    logging.info('Segmenting {:s} using unigram model.'.format(filename))
+    logging.info('Segmenting {0:s} using {1:s}\'s unigram model.'.format(filename, model_name))
     logging.info('Boundary initialisation: random') #
 
     #set_init(b_init) # Copy from segment.cc
     # No set_models since it doesn't seem to be useful for the unigram case
-    main_state = State(data, alpha_1 = args.alpha_1, p_boundary = args.p_boundary)
 
-    iters = args.iterations #
+    # Initialisation of the model state
+    if model_name == 'pypseg':
+        main_state = PYPState(data, discount = args.discount,
+                           alpha_1 = args.alpha_1, p_boundary = args.p_boundary)
+    else: # Default model: dpseg
+        main_state = State(data, alpha_1 = args.alpha_1,
+                           p_boundary = args.p_boundary)
+
+    iters = args.iterations
     logging.info('Sampling {:d} iterations.'.format(iters))
 
     logging.info('Evaluating a sample')

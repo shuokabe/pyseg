@@ -4,89 +4,27 @@ import logging
 
 from pyseg import utils
 
-# dpseg model
+# pypseg model
 
 logging.basicConfig(level = logging.DEBUG, format = '[%(asctime)s] %(message)s',
                     datefmt = '%d/%m/%Y %H:%M:%S')
 
 
-class Lexicon: # Improved dictionary using a Counter
-    '''
-    Keeps track of the lexicon in the dpseg model, using a Counter object.
-
-    lexicon (Counter): improved dictionary where each word is associated to
-        its frequency.
-    n_types (int): number of types in the lexicon.
-    n_tokens (int): number of tokens in the lexicon.
-
-    '''
-    def __init__(self):
-        self.lexicon = collections.Counter()
-
-        # Number of types and tokens (size parameters)
-        self.n_types = 0
-        self.n_tokens = 0
-
-    def update_lex_size(self):
-        '''
-        Updates the two parameters storing the number of tokens and of types.
-
-        To use after any modification of the lexicon.
-        '''
-        self.n_types = len(self.lexicon)
-        self.n_tokens = sum(self.lexicon.values())
-
-    def add_one(self, word):
-        '''
-        Adds one count to a given word in the lexicon and updates the size
-        parameters of the whole lexicon.
-        '''
-        self.lexicon[word] += 1
-        #self.update_lex_size()
-        self.n_types = len(self.lexicon)
-        self.n_tokens += 1 # Add one token
-
-    def remove_one(self, word):
-        '''
-        Removes one count from a given word in the lexicon and updates the size
-        parameters of the whole lexicon. Removes the word type from the lexicon
-        if the count is 0.
-        '''
-        if self.lexicon[word] > 1:
-            self.lexicon[word] += -1
-        elif (self.lexicon[word] == 1): # If the count for the word is 0
-            del self.lexicon[word]
-            self.n_types += -1 # # Remove the word from the lexicon
-        else:
-            raise KeyError('The word %s is not in the lexicon.' % word)
-        #+self.lexicon # Remove types with 0 occurrence
-        #self.lexicon = self.lexicon - collections.Counter(word = 1)
-        #self.update_lex_size()
-        self.n_tokens += -1 # Remove one token
-
-    def init_lexicon_text(self, text):
-        '''
-        Initialises the lexicon (Counter) with the text.
-        '''
-        counter = collections.Counter()
-        for line in text:
-            split_line = utils.line_to_word(line)
-            counter += collections.Counter(split_line) # Keep counter type
-        self.lexicon = counter
-        self.update_lex_size()
-
+from pyseg.dpseg import Lexicon
 
 # Unigram case
-class State: # Information on the whole document
-    def __init__(self, data, alpha_1, p_boundary):
+class PYPState: # Information on the whole document
+    def __init__(self, data, discount, alpha_1, p_boundary):
         # State parameters
+        self.discount = discount
+        utils.check_value_between(discount, 0, 1)
         self.alpha_1 = alpha_1
         self.p_boundary = p_boundary
         utils.check_probability(p_boundary)
 
         self.beta = 2 # Hyperparameter?
 
-        logging.info(' alpha_1: {0:d}, p_boundary: {1:.1f}'.format(self.alpha_1, self.p_boundary))
+        logging.info(' discount: {0:.1f}, alpha_1: {1:d}, p_boundary: {2:.1f}'.format(self.discount, self.alpha_1, self.p_boundary))
 
         # Data and Utterance object
         self.unsegmented = utils.unsegmented(data) #datafile.unsegmented(data)
@@ -147,20 +85,21 @@ class State: # Information on the whole document
 
     # Probabilities
     def p_cont(self, n_words, n_utterances):
-        p = (n_words - n_utterances + 1 + self.beta / 2) / (n_words + 1 + self.beta)
+        p = (n_words - n_utterances + 1 + (self.beta / 2)) / (n_words + 1 + self.beta)
         utils.check_probability(p)
         return p
 
     def p_word(self, string):
         '''
         Computes the prior probability of a string of length n:
-        p_word = alpha_1 * p_boundary * (1 - p_boundary)^(n - 1)
+        p_word = p_boundary * (1 - p_boundary)^(n - 1)
                 * \prod_1^n phoneme(string_i)
+        No alpha_1 in this model.
         '''
         p = 1
         for letter in string:
             p = p * self.phoneme_ps[letter]
-        p = p * self.alpha_1 * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
+        p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
         return p
 
     # Sampling
@@ -246,7 +185,14 @@ class Utterance: # Information on one utterance of the document
             #pos += 1
 
     def numer_base(self, word, state):
-        return state.word_counts.lexicon[word] + state.p_word(word)
+        if state.word_counts.lexicon[word] == 0: # If the word is not in the lexicon
+            base = 0
+        else: # The word is in the lexicon
+            base = state.word_counts.lexicon[word] - state.discount
+        base += ((state.discount * state.word_counts.n_types) + state.alpha_1) * state.p_word(word)
+        #print('numer_base: ', base)
+        #print('new element: ', (state.discount * state.word_counts.n_types) * state.p_word(word))
+        return base
 
     def left_word(self, i):
         utils.check_value_between(i, 0, len(self.sentence)) # Unsure for unsegmented length
@@ -303,6 +249,7 @@ class Utterance: # Information on one utterance of the document
 
         # Annealing
         yes = yes ** temp
+        #print('yes temp: ', yes)
         no = no ** temp
         p_yes = yes / (yes + no)
         if (random.random() < p_yes):
