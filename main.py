@@ -1,12 +1,14 @@
-import numpy as np
-import random
-import logging
 import argparse
+import logging
+import numpy as np
+import pickle
+import random
 from tqdm import tqdm # Progress bar
 
 #from pyseg import dpseg
 from pyseg.dpseg import State
 from pyseg.pypseg import PYPState
+from pyseg.supervised_dpseg import SupervisedState
 from pyseg.analysis import Statistics, evaluate
 from pyseg import utils
 
@@ -37,7 +39,17 @@ def parse_args():
                         help='output filename (base)')
     parser.add_argument('-r', '--rnd_seed', default=42, type=int,
                         help='random seed')
-    parser.add_argument('--version', action='version', version='v1.0')
+
+    # Supervision parameters
+    parser.add_argument('--dictionary_file', default='none', type=str,
+                        help='file name of the dictionary used for dictionary supervision')
+    parser.add_argument('--dictionary_method', default='none', type=str,
+                        choices=['none', 'naive', 'initialise', 'mixture'],
+                        help='method for dictionary supervision')
+    parser.add_argument('--dictionary_parameter', default=0, type=float,
+                        help='parameter for dictionary supervision')
+
+    parser.add_argument('--version', action='version', version='1.1.0') 
 
     return parser.parse_args()
 
@@ -46,7 +58,7 @@ def main():
     args = parse_args()
 
     # Input file
-    filename = args.filename #'../Summer exp 2020/mboshi_0.5_letter.word'
+    filename = args.filename
 
     # Seed
     rnd_seed = args.rnd_seed #42
@@ -66,8 +78,17 @@ def main():
         main_state = PYPState(data, discount = args.discount,
                            alpha_1 = args.alpha_1, p_boundary = args.p_boundary)
     else: # Default model: dpseg
-        main_state = State(data, alpha_1 = args.alpha_1,
-                           p_boundary = args.p_boundary)
+        if args.dictionary_method != 'none': # If supervision
+            with open(args.dictionary_file, 'rb') as d:
+                dictionary = pickle.load(d)
+            main_state = SupervisedState(data, alpha_1 = args.alpha_1,
+                         p_boundary = args.p_boundary,
+                         dictionary = dictionary,
+                         dictionary_method = args.dictionary_method,
+                         dictionary_parameter = args.dictionary_parameter)
+        else:
+            main_state = State(data, alpha_1 = args.alpha_1,
+                         p_boundary = args.p_boundary)
 
     iters = args.iterations
     logging.info('Sampling {:d} iterations.'.format(iters))
@@ -97,6 +118,12 @@ def main():
             logging.info('iter {0:d}: temp = {1:.1f}'.format(i, temp))
 
         main_state.sample(temp)
+        if args.dictionary_method == 'naive':
+            pass
+        else:
+            utils.check_equality(main_state.word_counts.n_types, len(main_state.word_counts.lexicon))
+            utils.check_equality(main_state.word_counts.n_tokens, sum(main_state.word_counts.lexicon.values()))
+
     logging.info('{:d} iterations'.format(iters))
 
     segmented_text = main_state.get_segmented()

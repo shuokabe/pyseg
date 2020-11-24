@@ -42,8 +42,13 @@ class Lexicon: # Improved dictionary using a Counter
         parameters of the whole lexicon.
         '''
         self.lexicon[word] += 1
+
+        if self.lexicon[word] == 1: # If it is a new word
+            self.n_types += 1
+        else: # If it was already in the dictionary
+            pass
         #self.update_lex_size()
-        self.n_types = len(self.lexicon)
+        #self.n_types = len(self.lexicon)
         self.n_tokens += 1 # Add one token
 
     def remove_one(self, word):
@@ -146,8 +151,10 @@ class State: # Information on the whole document
             self.phoneme_ps[letter] = 1 / self.alphabet_size
 
     # Probabilities
-    def p_cont(self, n_words, n_utterances):
-        p = (n_words - n_utterances + 1 + self.beta / 2) / (n_words + 1 + self.beta)
+    #def p_cont(self, n_words, n_utterances):
+    def p_cont(self):
+        n_words = self.word_counts.n_tokens
+        p = (n_words - self.n_utterances + 1 + self.beta / 2) / (n_words + 1 + self.beta)
         utils.check_probability(p)
         return p
 
@@ -202,7 +209,7 @@ class State: # Information on the whole document
 # Utterance in unigram case
 class Utterance: # Information on one utterance of the document
     def __init__(self, sentence, p_segment):
-        self.sentence = sentence # Unsegmented utterance # Char
+        self.sentence = sentence # Unsegmented utterance str
         self.p_segment = p_segment
         utils.check_probability(p_segment)
 
@@ -213,37 +220,10 @@ class Utterance: # Information on one utterance of the document
         for i in range(len(self.sentence) - 1): # Unsure for the range
             rand_val = random.random()
             if rand_val < self.p_segment:
-                self.line_boundaries += [True]
+                self.line_boundaries.append(True)
             else:
-                self.line_boundaries += [False]
-        self.line_boundaries += [True]
-
-    #def init_boundary(self): # Random case only
-        #for i in range(len(self.unsegmented_list)):
-            #utterance = self.unsegmented_list[i]
-            #line_boundaries = []
-            #print(len(utterance))
-            #for j in range(len(utterance) - 1): # Unsure for the range
-                #rand_val = random.random()
-                #if rand_val < self.p_segment:
-                    #line_boundaries += [True]
-                #else:
-                    #line_boundaries += [False]
-            #self.boundaries += [line_boundaries + [True]]
-        #self.boundaries.append(True)
-
-    #def add_counts_to_lex(self, word_counts):
-        # word_counts is a lexicon (a dictionary with the word counts)?
-        #beg = 0 #
-        #pos = 0 #
-        #prev = '' #
-        #for boundary in self.boundaries: # Loop on the boundary positions
-            #if boundary == True:
-                #curr = self.unsegmented[beg:(pos + 1)] # Current word
-                #word_counts[curr] = word_counts[curr] + 1
-                #beg = pos + 1 # New position
-                #prev = curr # Previous word
-            #pos += 1
+                self.line_boundaries.append(False)
+        self.line_boundaries.append(True) #+= [True]
 
     def numer_base(self, word, state):
         return state.word_counts.lexicon[word] + state.p_word(word)
@@ -291,7 +271,7 @@ class Utterance: # Information on one utterance of the document
 
         denom = lexicon.n_tokens + state.alpha_1
         #print('denom: ', denom)
-        yes = state.p_cont(lexicon.n_tokens, state.n_utterances) * self.numer_base(left, state) \
+        yes = state.p_cont() * self.numer_base(left, state) \
         * (self.numer_base(right, state) + utils.kdelta(left, right)) / (denom + 1)
         #print('yes: ', yes)
         no = self.numer_base(centre, state)

@@ -65,6 +65,15 @@ def kdelta(i, j):
     else:
         return 0
 
+def indicator(element, subset):
+    '''
+    Indicator function: returns 1 if the element is in the subset, 0 otherwise.
+    '''
+    if element in subset:
+        return 1
+    else:
+        return 0
+
 def delete_value_from_vector(vector, value):
     '''
     Deletes a given value from a vector.
