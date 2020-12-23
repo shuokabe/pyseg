@@ -1,6 +1,6 @@
-import random
 import collections
 import logging
+import random
 
 from pyseg import utils
 
@@ -99,14 +99,16 @@ class State: # Information on the whole document
         #self.unsegmented_list = utils.delete_value_from_vector(self.unsegmented_list, '') # Remove empty string
 
         # Variable to store alphabet, utterance, and lexicon information
-        self.utterances = [] #? # Stored utterances
+        self.utterances = [] # # Stored utterances
         self.boundaries = [] # In case a boundary element is needed
 
         for unseg_line in self.unsegmented_list: # rewrite with correct variable names
             # do next_reference function
             utterance = Utterance(unseg_line, p_boundary)
-            self.utterances += [utterance]
-            self.boundaries += [utterance.line_boundaries]
+            #self.utterances += [utterance]
+            #self.boundaries += [utterance.line_boundaries]
+            self.utterances.append(utterance)
+            self.boundaries.append(utterance.line_boundaries)
 
         self.n_utterances = len(self.utterances) # Number of utterances
 
@@ -120,7 +122,7 @@ class State: # Information on the whole document
         self.alphabet = utils.delete_value_from_vector(list(set(self.unsegmented)), '\n')
         self.alphabet_size = len(self.alphabet)
 
-        # Phonem probability (dictionary)
+        # Phoneme probability (dictionary)
         self.phoneme_ps = dict()
         #self.init_probs() # How to initialise the boundaries (here: random)
         self.init_phoneme_probs()
@@ -223,7 +225,7 @@ class Utterance: # Information on one utterance of the document
                 self.line_boundaries.append(True)
             else:
                 self.line_boundaries.append(False)
-        self.line_boundaries.append(True) #+= [True]
+        self.line_boundaries.append(True)
 
     def numer_base(self, word, state):
         return state.word_counts.lexicon[word] + state.p_word(word)

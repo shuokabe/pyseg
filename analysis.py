@@ -143,6 +143,7 @@ def evaluate(reference, segmented):
 
     reference_list = utils.text_to_line(reference, True) # Remove empty string
     segmented_list = utils.text_to_line(segmented, True) # Remove empty string
+    utils.check_equality(len(reference_list), len(segmented_list))
 
     ref_boundaries = get_boundaries(reference_list)
     seg_boundaries = get_boundaries(segmented_list)

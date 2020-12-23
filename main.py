@@ -40,16 +40,16 @@ def parse_args():
     parser.add_argument('-r', '--rnd_seed', default=42, type=int,
                         help='random seed')
 
-    # Supervision parameters
-    parser.add_argument('--dictionary_file', default='none', type=str,
-                        help='file name of the dictionary used for dictionary supervision')
-    parser.add_argument('--dictionary_method', default='none', type=str,
-                        choices=['none', 'naive', 'initialise', 'mixture'],
-                        help='method for dictionary supervision')
-    parser.add_argument('--dictionary_parameter', default=0, type=float,
-                        help='parameter for dictionary supervision')
+    # Supervision parameter arguments
+    parser.add_argument('--supervision_file', default='none', type=str,
+                        help='file name of the data used for supervision')
+    parser.add_argument('--supervision_method', default='none', type=str,
+                        choices=['none', 'boundary', 'naive', 'naive_freq', 'mixture', 'initialise', 'init_bigram'],
+                        help='supervision method (boundary and dictionary)')
+    parser.add_argument('--supervision_parameter', default=0, type=float,
+                        help='parameter value for supervision')
 
-    parser.add_argument('--version', action='version', version='1.1.0') 
+    parser.add_argument('--version', action='version', version='1.1.0')
 
     return parser.parse_args()
 
@@ -78,14 +78,17 @@ def main():
         main_state = PYPState(data, discount = args.discount,
                            alpha_1 = args.alpha_1, p_boundary = args.p_boundary)
     else: # Default model: dpseg
-        if args.dictionary_method != 'none': # If supervision
-            with open(args.dictionary_file, 'rb') as d:
-                dictionary = pickle.load(d)
+        if args.supervision_method != 'none': # If supervision
+            if args.supervision_method != 'boundary':
+                with open(args.supervision_file, 'rb') as d:
+                    supervision_data = pickle.load(d)
+            else:
+                supervision_data = open(args.supervision_file, 'r', encoding = 'utf8').read()
             main_state = SupervisedState(data, alpha_1 = args.alpha_1,
                          p_boundary = args.p_boundary,
-                         dictionary = dictionary,
-                         dictionary_method = args.dictionary_method,
-                         dictionary_parameter = args.dictionary_parameter)
+                         supervision_data = supervision_data,
+                         supervision_method = args.supervision_method,
+                         supervision_parameter = args.supervision_parameter)
         else:
             main_state = State(data, alpha_1 = args.alpha_1,
                          p_boundary = args.p_boundary)
@@ -118,13 +121,19 @@ def main():
             logging.info('iter {0:d}: temp = {1:.1f}'.format(i, temp))
 
         main_state.sample(temp)
-        if args.dictionary_method == 'naive':
+        if args.supervision_method in ['naive', 'naive_freq']:
             pass
         else:
             utils.check_equality(main_state.word_counts.n_types, len(main_state.word_counts.lexicon))
             utils.check_equality(main_state.word_counts.n_tokens, sum(main_state.word_counts.lexicon.values()))
 
     logging.info('{:d} iterations'.format(iters))
+    if model_name == 'pypseg':
+        utils.check_value_between(main_state.restaurant.n_tables, main_state.word_counts.n_types, main_state.word_counts.n_tokens)
+        utils.check_equality((sum(main_state.restaurant.customers.values())), main_state.word_counts.n_tokens)
+        utils.check_equality(main_state.restaurant.n_customers, main_state.word_counts.n_tokens)
+        print('{} tables'.format(main_state.restaurant.n_tables))
+        #print('Restaurant', main_state.restaurant.restaurant)
 
     segmented_text = main_state.get_segmented()
 
