@@ -14,10 +14,18 @@ from pyseg import utils
 
 # General setup of libraries
 logging.basicConfig(level = logging.DEBUG,
-                    filename = 'pyseg.log',
-                    filemode = 'w',
+                    #filename = 'pyseg.log',
+                    #filemode = 'w',
                     format = '[%(asctime)s] %(message)s',
                     datefmt = '%d/%m/%Y %H:%M:%S')
+
+filelog = logging.FileHandler('pyseg.log', 'w')
+filelog.setLevel(logging.INFO)
+
+formatter = logging.Formatter(fmt = '[%(asctime)s] %(message)s',
+                              datefmt = '%d/%m/%Y %H:%M:%S')
+filelog.setFormatter(formatter)
+logging.getLogger().addHandler(filelog)
 
 # Corresponds to the segment file
 
@@ -44,12 +52,12 @@ def parse_args():
     parser.add_argument('--supervision_file', default='none', type=str,
                         help='file name of the data used for supervision')
     parser.add_argument('--supervision_method', default='none', type=str,
-                        choices=['none', 'boundary', 'naive', 'naive_freq', 'mixture', 'initialise', 'init_bigram'],
+                        choices=['none', 'boundary', 'naive', 'naive_freq', 'mixture', 'initialise', 'init_bigram', 'init_trigram'],
                         help='supervision method (boundary and dictionary)')
     parser.add_argument('--supervision_parameter', default=0, type=float,
                         help='parameter value for supervision')
 
-    parser.add_argument('--version', action='version', version='1.1.0')
+    parser.add_argument('--version', action='version', version='1.2.2')
 
     return parser.parse_args()
 
@@ -137,9 +145,9 @@ def main():
 
     segmented_text = main_state.get_segmented()
 
-    output_file = args.output_file_base + '.txt'
-    with open(output_file, 'w',  encoding = 'utf8') as out_text:
-        out_text.write(segmented_text)
+    #output_file = args.output_file_base + '.txt'
+    #with open(output_file, 'w',  encoding = 'utf8') as out_text:
+    #    out_text.write(segmented_text)
 
     # Statistics
     stats = Statistics(segmented_text)
@@ -149,6 +157,13 @@ def main():
     # Evaluation results
     results = evaluate(data, segmented_text)
     logging.info('Evaluation metrics: %s' % results)
+
+    output_file = args.output_file_base + '.txt'
+    with open(output_file, 'w',  encoding = 'utf8') as out_text:
+        log_info = open('pyseg.log', 'r', encoding = 'utf8').read()
+        out_text.write(log_info)
+        out_text.write('Segmented text:\n')
+        out_text.write(segmented_text)
 
 
 if __name__ == "__main__":

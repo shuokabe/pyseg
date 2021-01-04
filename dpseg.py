@@ -228,19 +228,23 @@ class Utterance: # Information on one utterance of the document
         self.line_boundaries.append(True)
 
     def numer_base(self, word, state):
+        '''Return the numerator from the fraction used in sampling.'''
         return state.word_counts.lexicon[word] + state.p_word(word)
 
     def left_word(self, i):
+        '''Return the word on the left of i.'''
         utils.check_value_between(i, 0, len(self.sentence)) # Unsure for unsegmented length
         prev = self.prev_boundary(i)
         return self.sentence[(prev + 1):(i + 1)] # unsure
 
     def right_word(self, i):
+        '''Return the word on the right of i.'''
         utils.check_value_between(i, 0, len(self.sentence))# - 1) # Unsure for unsegmented length
         next = self.next_boundary(i)
         return self.sentence[(i + 1):(next + 1)] # unsure
 
     def centre_word(self, i):
+        '''Return the word which contains the i-th position in the sentence.'''
         utils.check_value_between(i, 0, len(self.sentence))# - 1) # Unsure for unsegmented length
         prev = self.prev_boundary(i)
         next = self.next_boundary(i)
@@ -301,9 +305,7 @@ class Utterance: # Information on one utterance of the document
     #    pass
 
     def prev_boundary(self, i):
-        '''
-        Returns the index of the previous boundary with respect to i.
-        '''
+        '''Return the index of the previous boundary with respect to i.'''
         utils.check_value_between(i, 0, len(self.sentence))
         for j in range(i - 1, -1, -1):
             if self.line_boundaries[j] == True:
@@ -311,9 +313,7 @@ class Utterance: # Information on one utterance of the document
         return -1
 
     def next_boundary(self, i):
-        '''
-        Returns the index of the next boundary with respect to i.
-        '''
+        '''Return the index of the next boundary with respect to i.'''
         utils.check_value_between(i, 0, len(self.sentence))# - 1)
         for j in range(i + 1, len(self.line_boundaries)):
             if self.line_boundaries[j] == True:

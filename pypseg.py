@@ -26,6 +26,7 @@ class Restaurant:
         self.discount = discount
 
     def add_customer(self, word, random_value=None):
+        '''Assign a customer (word) to a table in the restaurant.'''
         utils.check_equality(len(self.customers.keys()), len(self.restaurant.keys()))
         if word in self.restaurant.keys(): # Add the customer to a table (possibly new)
             n_customers = self.customers[word]
@@ -63,6 +64,7 @@ class Restaurant:
             self.n_customers += 1
 
     def remove_customer(self, word):
+        '''Remove a customer (word) from a table and close it if necessary.'''
         n_word_table = len(self.restaurant.get(word, []))
         if (n_word_table == 0):
             raise KeyError('There is no table with the word label %s.' % word)
@@ -99,6 +101,7 @@ class Restaurant:
             #utils.check_equality(self.customers.get(word, n_customers - 1), n_customers - 1)
 
     def init_tables(self, text):
+        '''Initialise the tables in the restaurant with the given text.'''
         for line in text:
             split_line = utils.line_to_word(line)
             for word in split_line:

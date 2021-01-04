@@ -65,8 +65,8 @@ class SupervisedState(State): # Information on the whole document
         else: # Dictionary supervision (or no supervision) case
             for unseg_line in self.unsegmented_list: # rewrite with correct variable names
                 utterance = Utterance(unseg_line, p_boundary)
-                self.utterances += [utterance]
-                self.boundaries += [utterance.line_boundaries]
+                self.utterances.append(utterance)
+                self.boundaries.append(utterance.line_boundaries)
 
         self.n_utterances = len(self.utterances) # Number of utterances
 
@@ -93,7 +93,7 @@ class SupervisedState(State): # Information on the whole document
         # Phoneme probability (dictionary)
         self.phoneme_ps = dict()
 
-        if self.sup_method in ['initialise', 'init_bigram']:
+        if self.sup_method in ['initialise', 'init_bigram', 'init_trigram']:
             self.word_length_ps = dict() # Exclusive to the dictionary initialise method
 
         #self.init_probs() # How to initialise the boundaries (here: random)
@@ -108,11 +108,13 @@ class SupervisedState(State): # Information on the whole document
         '''
         # Skip part to calculate the true distribution of characters
 
-        if self.sup_method in ['initialise', 'init_bigram']:
+        if self.sup_method in ['initialise', 'init_bigram', 'init_trigram']:
             # Supervision with a dictionary
             logging.info('Phoneme distribution: dictionary supervision')
             if self.sup_method == 'init_bigram':
                 chosen_method = 'bigram'
+            elif self.sup_method == 'init_trigram':
+                chosen_method = 'trigram'
             else:
                 chosen_method = 'empirical'
             logging.info(' Chosen initialisation method: {0:s}'.format(chosen_method))
@@ -136,17 +138,22 @@ class SupervisedState(State): # Information on the whole document
             print('word_length:', self.word_length_ps, sum(self.word_length_ps.values()))
 
             # TODO: make the different cases clearer (and more efficient)
-            if chosen_method == 'bigram':
-                bigrams_in_dict_list = []
+            if chosen_method in ['bigram', 'trigram']:
+                ngrams_in_dict_list = []
                 for word in self.sup_data.keys():
                     considered_word = '<{0}>'.format(word)
-                    word_bigram_list = [considered_word[i:(i + 2)] for i in range(len(considered_word) - 1)]
-                    bigrams_in_dict_list += word_bigram_list
-                letters_in_dict = collections.Counter(bigrams_in_dict_list)
-                frequency_bigrams_dict = sum(letters_in_dict.values())
-                for bigram in letters_in_dict.keys():
-                    self.phoneme_ps[bigram] = letters_in_dict[bigram] / frequency_bigrams_dict
-                print('Bigram dictionary: {0}'.format(self.phoneme_ps))
+                    if chosen_method == 'bigram':
+                        word_ngram_list = [considered_word[i:(i + 2)] for i in range(len(considered_word) - 1)]
+                    elif chosen_method == 'trigram':
+                        word_ngram_list = [considered_word[i:(i + 3)] for i in range(len(considered_word) - 2)]
+                    else:
+                        pass
+                    ngrams_in_dict_list += word_ngram_list
+                letters_in_dict = collections.Counter(ngrams_in_dict_list)
+                frequency_ngrams_dict = sum(letters_in_dict.values())
+                for ngram in letters_in_dict.keys():
+                    self.phoneme_ps[ngram] = letters_in_dict[ngram] / frequency_ngrams_dict
+                print('Ngram dictionary: {0}'.format(self.phoneme_ps))
             else:
                 letters_in_dict = collections.Counter(words_in_dict_str)
             frequency_letters_dict = sum(letters_in_dict.values())
@@ -154,7 +161,7 @@ class SupervisedState(State): # Information on the whole document
             # TODO: deal with the case letters_in_dict[letter] == 0
             if chosen_method == 'length':
                 self.phoneme_ps = {letter: 1 / self.alphabet_size for letter in self.alphabet}
-            elif chosen_method == 'bigram':
+            elif chosen_method in ['bigram', 'trigram']:
                 pass
             else:
                 self.phoneme_ps = {letter: letters_in_dict[letter] / frequency_letters_dict for letter in self.alphabet}
@@ -184,11 +191,17 @@ class SupervisedState(State): # Information on the whole document
                 * \prod_1^n phoneme(string_i)
         '''
         p = 1
-        if (self.sup_method == 'init_bigram'):
+        if self.sup_method in ['init_bigram', 'init_trigram']:
+            if self.sup_method == 'init_bigram':
+                n_ngram = 2
+            elif self.sup_method == 'init_trigram':
+                n_ngram = 3
+            else:
+                pass
             considered_word = '<{0}>'.format(string)
-            for i in range(len(considered_word) - 1):
-                bigram = considered_word[i:(i + 2)]
-                p = p * self.phoneme_ps.get(bigram, 10 ** (-6))
+            for i in range(len(considered_word) - n_ngram + 1):
+                ngram = considered_word[i:(i + n_ngram)]
+                p = p * self.phoneme_ps.get(ngram, 10 ** (-6))
         else:
             for letter in string:
                 p = p * self.phoneme_ps[letter]
@@ -199,7 +212,7 @@ class SupervisedState(State): # Information on the whole document
             p = self.sup_parameter / n_words_dict * utils.indicator(string, self.sup_data) \
                 + (1 - self.sup_parameter) * p
             #print('p after mixture:', p)
-        elif self.sup_method in ['initialise', 'init_bigram']:
+        elif self.sup_method in ['initialise', 'init_bigram', 'init_trigram']:
             #print('p before length:', p)
             p = p * self.word_length_ps.get(len(string), 10 ** (-5))
             #print('p after length:', p)

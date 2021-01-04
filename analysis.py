@@ -22,33 +22,25 @@ class Statistics:
     #    return str_lexicon[:len(str_lexicon)]
 
     def lexicon_text(self):
-        '''
-        Creates the lexicon (Counter) of the text.
-        '''
+        '''Create the lexicon (Counter) of the text.'''
         counter = Counter()
         for split_line in self.split_utterances:
             counter += Counter(split_line) # Keep counter type
         return counter
 
     def average_token_length(self):
-        '''
-        Returns the average length of tokens.
-        '''
+        '''Return the average length of tokens.'''
         tl_sum = sum([sum([len(token) for token in utt]) for utt in self.split_utterances])
         n_tokens = sum([len(utt) for utt in self.split_utterances])
         return tl_sum / n_tokens
 
     def average_type_length(self):
-        '''
-        Returns the average length of types.
-        '''
+        '''Return the average length of types.'''
         type_list = list(self.lexicon)
         return sum([len(word) for word in type_list]) / len(type_list)
 
     def compute_stats(self):
-        '''
-        Creates a dictionary containing the statistics for the text.
-        '''
+        '''Create a dictionary containing the statistics for the text.'''
         stats = dict()
 
         stats['N_utterances'] = len(self.split_text)
