@@ -52,12 +52,17 @@ def parse_args():
     parser.add_argument('--supervision_file', default='none', type=str,
                         help='file name of the data used for supervision')
     parser.add_argument('--supervision_method', default='none', type=str,
-                        choices=['none', 'boundary', 'naive', 'naive_freq', 'mixture', 'initialise', 'init_bigram', 'init_trigram'],
-                        help='supervision method (boundary and dictionary)')
+                        choices=['none', 'naive', 'naive_freq', 'mixture', 'initialise', 'init_bigram', 'init_trigram'],
+                        help='supervision method (word dictionary)')
     parser.add_argument('--supervision_parameter', default=0, type=float,
-                        help='parameter value for supervision')
+                        help='parameter value for (dictionary) supervision')
+    parser.add_argument('--supervision_boundary', default='none', type=str,
+                        choices=['none', 'true', 'random', 'sentences'],
+                        help='boundary supervision method')
+    parser.add_argument('--supervision_boundary_parameter', default=0, type=float,
+                        help='parameter value for boundary supervision')
 
-    parser.add_argument('--version', action='version', version='1.2.2')
+    parser.add_argument('--version', action='version', version='1.2.4')
 
     return parser.parse_args()
 
@@ -86,17 +91,20 @@ def main():
         main_state = PYPState(data, discount = args.discount,
                            alpha_1 = args.alpha_1, p_boundary = args.p_boundary)
     else: # Default model: dpseg
-        if args.supervision_method != 'none': # If supervision
-            if args.supervision_method != 'boundary':
+        if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'): # If supervision
+            if args.supervision_method != 'none':
                 with open(args.supervision_file, 'rb') as d:
                     supervision_data = pickle.load(d)
             else:
-                supervision_data = open(args.supervision_file, 'r', encoding = 'utf8').read()
+                supervision_data = 'none'
+                #open(args.supervision_file, 'r', encoding = 'utf8').read()
             main_state = SupervisedState(data, alpha_1 = args.alpha_1,
                          p_boundary = args.p_boundary,
                          supervision_data = supervision_data,
                          supervision_method = args.supervision_method,
-                         supervision_parameter = args.supervision_parameter)
+                         supervision_parameter = args.supervision_parameter,
+                         supervision_boundary = args.supervision_boundary,
+                         supervision_boundary_parameter = args.supervision_boundary_parameter)
         else:
             main_state = State(data, alpha_1 = args.alpha_1,
                          p_boundary = args.p_boundary)
@@ -140,7 +148,7 @@ def main():
         utils.check_value_between(main_state.restaurant.n_tables, main_state.word_counts.n_types, main_state.word_counts.n_tokens)
         utils.check_equality((sum(main_state.restaurant.customers.values())), main_state.word_counts.n_tokens)
         utils.check_equality(main_state.restaurant.n_customers, main_state.word_counts.n_tokens)
-        print('{} tables'.format(main_state.restaurant.n_tables))
+        logging.debug('{} tables'.format(main_state.restaurant.n_tables))
         #print('Restaurant', main_state.restaurant.restaurant)
 
     segmented_text = main_state.get_segmented()
@@ -158,6 +166,7 @@ def main():
     results = evaluate(data, segmented_text)
     logging.info('Evaluation metrics: %s' % results)
 
+    # Output file (log + segmented text)
     output_file = args.output_file_base + '.txt'
     with open(output_file, 'w',  encoding = 'utf8') as out_text:
         log_info = open('pyseg.log', 'r', encoding = 'utf8').read()

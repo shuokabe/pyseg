@@ -17,7 +17,8 @@ from pyseg.dpseg import Lexicon, State, Utterance
 # Unigram case
 class SupervisedState(State): # Information on the whole document
     def __init__(self, data, alpha_1, p_boundary, supervision_data=None,
-                 supervision_method='none', supervision_parameter=0):
+                 supervision_method='none', supervision_parameter=0,
+                 supervision_boundary='none', supervision_boundary_parameter=0):
         # State parameters
         self.alpha_1 = alpha_1
         self.p_boundary = p_boundary
@@ -31,12 +32,15 @@ class SupervisedState(State): # Information on the whole document
         self.sup_data = supervision_data # dictionary or text file
         self.sup_method = supervision_method
         self.sup_parameter = supervision_parameter
+        self.sup_boundary_method = supervision_boundary
+        self.sup_boundary_parameter = supervision_boundary_parameter
 
-        if self.sup_method == 'boundary':
-            logging.info('Supervision with segmentation boundaries')
-        else: # Dictionary supervision
+        if self.sup_method != 'none': #else: # Dictionary supervision
             logging.info('Supervision with a dictionary')
-        logging.info(' Supervision method: {0:s}, supervision parameter: {1:.2f}'.format(self.sup_method, self.sup_parameter))
+            logging.info(' Supervision method: {0:s}, supervision parameter: {1:.2f}'.format(self.sup_method, self.sup_parameter))
+        if self.sup_boundary_method != 'none': # Boundary supervision
+            logging.info('Supervision with segmentation boundaries')
+            logging.info(' Boundary supervision method: {0:s}, boundary supervision parameter: {1:.2f}'.format(self.sup_boundary_method, self.sup_boundary_parameter))
 
         # Data and Utterance object
         self.unsegmented = utils.unsegmented(data) #datafile.unsegmented(data)
@@ -47,18 +51,20 @@ class SupervisedState(State): # Information on the whole document
         self.utterances = [] #? # Stored utterances
         self.boundaries = [] # In case a boundary element is needed
 
-        if self.sup_method == 'boundary':
-            if self.unsegmented != utils.unsegmented(self.sup_data):
-                raise ValueError('The supervision data must have the same content as the input text.')
-            else:
-                pass
+        if self.sup_boundary_method != 'none': # Boundary supervision
+            #if self.unsegmented != utils.unsegmented(self.sup_data):
+            #    raise ValueError('The supervision data must have the same content as the input text.')
+            #else:
+            #    pass
             self.sup_boundaries = [] # Stored supervision boundaries
-            sup_data_list = utils.text_to_line(self.sup_data, True)
+            sup_data_list = utils.text_to_line(data, True) #self.sup_data
             utils.check_equality(len(self.unsegmented_list), len(sup_data_list))
             for i in range(len(self.unsegmented_list)): # rewrite with correct variable names
                 unseg_line = self.unsegmented_list[i]
                 sup_line = sup_data_list[i]
-                utterance = SupervisedUtterance(unseg_line, sup_line, p_boundary)
+                utterance = SupervisedUtterance(
+                    unseg_line, sup_line, p_boundary,
+                    self.sup_boundary_method, self.sup_boundary_parameter)
                 self.utterances.append(utterance)
                 self.boundaries.append(utterance.line_boundaries)
                 self.sup_boundaries.append(utterance.sup_boundaries)
@@ -100,7 +106,6 @@ class SupervisedState(State): # Information on the whole document
         self.init_phoneme_probs()
 
 
-
     def init_phoneme_probs(self):
         '''
         Computes (uniform distribution)
@@ -108,15 +113,11 @@ class SupervisedState(State): # Information on the whole document
         '''
         # Skip part to calculate the true distribution of characters
 
-        if self.sup_method in ['initialise', 'init_bigram', 'init_trigram']:
+        if self.sup_method == 'initialise':
             # Supervision with a dictionary
             logging.info('Phoneme distribution: dictionary supervision')
-            if self.sup_method == 'init_bigram':
-                chosen_method = 'bigram'
-            elif self.sup_method == 'init_trigram':
-                chosen_method = 'trigram'
-            else:
-                chosen_method = 'empirical'
+
+            chosen_method = 'empirical'
             logging.info(' Chosen initialisation method: {0:s}'.format(chosen_method))
 
             words_in_dict_str = ''
@@ -139,6 +140,33 @@ class SupervisedState(State): # Information on the whole document
 
             # TODO: make the different cases clearer (and more efficient)
             if chosen_method in ['bigram', 'trigram']:
+                pass
+            else:
+                letters_in_dict = collections.Counter(words_in_dict_str)
+                frequency_letters_dict = sum(letters_in_dict.values())
+
+            # TODO: deal with the case letters_in_dict[letter] == 0
+            if chosen_method == 'length':
+                self.phoneme_ps = {letter: 1 / self.alphabet_size for letter in self.alphabet}
+            else:
+                self.phoneme_ps = {letter: letters_in_dict[letter] / frequency_letters_dict for letter in self.alphabet}
+            #assert (abs(sum(self.phoneme_ps.values()) - 1.0) < 10^(-5)), 'The sum of the probabilities is not 1.'
+            print('Sum of probabilities: {0}'.format(sum(self.phoneme_ps.values())))
+
+        elif self.sup_method in ['init_bigram', 'init_trigram']:
+            # Supervision with a dictionary
+            logging.info('Phoneme distribution: dictionary supervision')
+            if self.sup_method == 'init_bigram':
+                chosen_method = 'bigram'
+            elif self.sup_method == 'init_trigram':
+                chosen_method = 'trigram'
+            else:
+                pass
+            logging.info(' Chosen initialisation method: {0:s}'.format(chosen_method))
+
+            # TODO: make the different cases clearer (and more efficient)
+            if chosen_method in ['bigram', 'trigram']:
+                epsilon = 0.01
                 ngrams_in_dict_list = []
                 for word in self.sup_data.keys():
                     considered_word = '<{0}>'.format(word)
@@ -149,22 +177,37 @@ class SupervisedState(State): # Information on the whole document
                     else:
                         pass
                     ngrams_in_dict_list += word_ngram_list
-                letters_in_dict = collections.Counter(ngrams_in_dict_list)
-                frequency_ngrams_dict = sum(letters_in_dict.values())
-                for ngram in letters_in_dict.keys():
-                    self.phoneme_ps[ngram] = letters_in_dict[ngram] / frequency_ngrams_dict
+                ngrams_in_dict = collections.Counter(ngrams_in_dict_list)
+
+                letters_in_dict_list = [ngram[0] for ngram in ngrams_in_dict_list]
+                letters_in_dict = collections.Counter(letters_in_dict_list)
+                print('letters in dict', letters_in_dict)
+                #frequency_ngrams_dict = sum(ngrams_in_dict.values())
+                all_letters = list(letters_in_dict.keys()) + ['>']
+                print(all_letters)
+                if chosen_method == 'bigram':
+                    list_all_ngram = ['{0:s}{1:s}'.format(first, second) for first in all_letters for second in all_letters]
+                elif chosen_method == 'trigram':
+                    list_all_ngram = ['{0:s}{1:s}{2:s}'.format(first, second, third) for first in all_letters for second in all_letters for third in all_letters]
+                else:
+                    pass
+                smooth_denominator = epsilon * (len(all_letters))
+                print('Smooth denominator', smooth_denominator)
+                for ngram in list_all_ngram: #ngrams_in_dict.keys():
+                    self.phoneme_ps[ngram] = (ngrams_in_dict[ngram] + epsilon) / (letters_in_dict[ngram[0]] + smooth_denominator) #frequency_ngrams_dict
                 print('Ngram dictionary: {0}'.format(self.phoneme_ps))
             else:
-                letters_in_dict = collections.Counter(words_in_dict_str)
-            frequency_letters_dict = sum(letters_in_dict.values())
+                pass
+                #letters_in_dict = collections.Counter(words_in_dict_str)
+                #frequency_letters_dict = sum(letters_in_dict.values())
 
             # TODO: deal with the case letters_in_dict[letter] == 0
-            if chosen_method == 'length':
-                self.phoneme_ps = {letter: 1 / self.alphabet_size for letter in self.alphabet}
-            elif chosen_method in ['bigram', 'trigram']:
-                pass
-            else:
-                self.phoneme_ps = {letter: letters_in_dict[letter] / frequency_letters_dict for letter in self.alphabet}
+            #if chosen_method == 'length':
+            #    self.phoneme_ps = {letter: 1 / self.alphabet_size for letter in self.alphabet}
+            #elif chosen_method in ['bigram', 'trigram']:
+            #    pass
+            #else:
+            #    self.phoneme_ps = {letter: letters_in_dict[letter] / frequency_letters_dict for letter in self.alphabet}
             #for letter in self.alphabet:
                 #elif chosen_method == 'bigram':
                     #pass
@@ -212,7 +255,7 @@ class SupervisedState(State): # Information on the whole document
             p = self.sup_parameter / n_words_dict * utils.indicator(string, self.sup_data) \
                 + (1 - self.sup_parameter) * p
             #print('p after mixture:', p)
-        elif self.sup_method in ['initialise', 'init_bigram', 'init_trigram']:
+        elif self.sup_method == 'initialise': #in ['initialise', 'init_bigram', 'init_trigram']:
             #print('p before length:', p)
             p = p * self.word_length_ps.get(len(string), 10 ** (-5))
             #print('p after length:', p)
@@ -227,7 +270,8 @@ class SupervisedState(State): # Information on the whole document
 
 # Utterance in unigram case
 class SupervisedUtterance(Utterance): # Information on one utterance of the document
-    def __init__(self, sentence, sup_sentence, p_segment):
+    def __init__(self, sentence, sup_sentence, p_segment,
+                 sup_boundary_method='none', sup_boundary_parameter='none'):
         self.sentence = sentence # Unsegmented utterance str
         self.sup_sentence = sup_sentence # Supervision sentence (with spaces)
         self.p_segment = p_segment
@@ -236,24 +280,43 @@ class SupervisedUtterance(Utterance): # Information on one utterance of the docu
         self.line_boundaries = [] # Test to store boundary existence
         self.init_boundary() #
 
+        #'true', 'random', 'sentences'
+        self.sup_boundary_method = sup_boundary_method
+        self.sup_boundary_parameter = sup_boundary_parameter
+
         self.sup_boundaries = []
-        self.get_sup_boundaries()
+        self.init_sup_boundaries()
 
         utils.check_equality(len(self.sentence), len(self.sup_boundaries))
 
     #def init_boundary(self):
 
-    def get_sup_boundaries(self):
+    def init_sup_boundaries(self):
         boundary_track = 0
         unseg_length = len(self.sentence)
         for i in range(unseg_length - 1):
-            if self.sup_sentence[boundary_track + 1] == ' ':
-                self.sup_boundaries.append(True)
-                boundary_track += 1
-            else:
-                self.sup_boundaries.append(False)
+            boundary_track = self.get_sup_boundary(boundary_track)
+            #if self.sup_sentence[boundary_track + 1] == ' ': # Boundary case
+            #    self.sup_boundaries.append(1)
+            #    boundary_track += 1
+            #else: # No boundary case
+            #    if self.sup_boundary_method == 'true':
+            #        self.sup_boundaries.append(-1)
+            #    else:
+            #        self.sup_boundaries.append(0)
+            #boundary_track += 1
+        self.sup_boundaries.append(1)
+
+    def get_sup_boundary(self, boundary_track):
+        if self.sup_sentence[boundary_track + 1] == ' ': # Boundary case
+            self.sup_boundaries.append(1)
             boundary_track += 1
-        self.sup_boundaries.append(True)
+        else: # No boundary case
+            if self.sup_boundary_method == 'true':
+                self.sup_boundaries.append(-1)
+            else:
+                self.sup_boundaries.append(0)
+        return boundary_track + 1
 
     #def numer_base(self, word, state):
 
@@ -281,12 +344,17 @@ class SupervisedUtterance(Utterance): # Information on one utterance of the docu
             lexicon.remove_one(centre)
             #print(centre, lexicon.lexicon[centre])
 
-        if self.sup_boundaries[i]:
+        # Supervision
+        if self.sup_boundaries[i] == 1:
             # No sampling if known boundary
             self.line_boundaries[i] = True
             lexicon.add_one(left)
             lexicon.add_one(right)
-        else:
+        elif self.sup_boundaries[i] == 0:
+            # No sampling if known no boundary position
+            self.line_boundaries[i] = False
+            lexicon.add_one(centre)
+        else: # self.sup_boundaries[i] == -1: # Sampling case
             denom = lexicon.n_tokens + state.alpha_1
             #print('denom: ', denom)
             yes = state.p_cont() * self.numer_base(left, state) \

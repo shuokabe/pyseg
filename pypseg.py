@@ -151,7 +151,7 @@ class PYPState(State): # Information on the whole document
         self.restaurant.init_tables(init_segmented_list)
         random.setstate(random_state)
         #print('Restaurant:', self.restaurant.restaurant)
-        print('{} tables initially'.format(self.restaurant.n_tables))
+        logging.debug('{} tables initially'.format(self.restaurant.n_tables))
         utils.check_value_between(self.restaurant.n_tables, self.word_counts.n_types, self.word_counts.n_tokens)
         utils.check_equality((sum(self.restaurant.customers.values())), self.word_counts.n_tokens)
         utils.check_equality(self.restaurant.n_customers, self.word_counts.n_tokens)

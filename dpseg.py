@@ -48,7 +48,6 @@ class Lexicon: # Improved dictionary using a Counter
         else: # If it was already in the dictionary
             pass
         #self.update_lex_size()
-        #self.n_types = len(self.lexicon)
         self.n_tokens += 1 # Add one token
 
     def remove_one(self, word):
@@ -105,8 +104,6 @@ class State: # Information on the whole document
         for unseg_line in self.unsegmented_list: # rewrite with correct variable names
             # do next_reference function
             utterance = Utterance(unseg_line, p_boundary)
-            #self.utterances += [utterance]
-            #self.boundaries += [utterance.line_boundaries]
             self.utterances.append(utterance)
             self.boundaries.append(utterance.line_boundaries)
 
@@ -115,7 +112,6 @@ class State: # Information on the whole document
         # Lexicon object (Counter)
         self.word_counts = Lexicon() # Word counter
         init_segmented_list = utils.text_to_line(self.get_segmented(), True) # Remove empty string
-        #init_segmented_list = utils.delete_value_from_vector(init_segmented_list, '')
         self.word_counts.init_lexicon_text(init_segmented_list)
 
         # Alphabet (list of letters)
@@ -153,7 +149,6 @@ class State: # Information on the whole document
             self.phoneme_ps[letter] = 1 / self.alphabet_size
 
     # Probabilities
-    #def p_cont(self, n_words, n_utterances):
     def p_cont(self):
         n_words = self.word_counts.n_tokens
         p = (n_words - self.n_utterances + 1 + self.beta / 2) / (n_words + 1 + self.beta)
@@ -215,7 +210,7 @@ class Utterance: # Information on one utterance of the document
         self.p_segment = p_segment
         utils.check_probability(p_segment)
 
-        self.line_boundaries = [] # Test to store boundary existence
+        self.line_boundaries = [] #
         self.init_boundary() #
 
     def init_boundary(self): # Random case only
@@ -233,22 +228,22 @@ class Utterance: # Information on one utterance of the document
 
     def left_word(self, i):
         '''Return the word on the left of i.'''
-        utils.check_value_between(i, 0, len(self.sentence)) # Unsure for unsegmented length
+        utils.check_value_between(i, 0, len(self.sentence))
         prev = self.prev_boundary(i)
-        return self.sentence[(prev + 1):(i + 1)] # unsure
+        return self.sentence[(prev + 1):(i + 1)] #
 
     def right_word(self, i):
         '''Return the word on the right of i.'''
-        utils.check_value_between(i, 0, len(self.sentence))# - 1) # Unsure for unsegmented length
+        utils.check_value_between(i, 0, len(self.sentence) - 1) # No last pos
         next = self.next_boundary(i)
-        return self.sentence[(i + 1):(next + 1)] # unsure
+        return self.sentence[(i + 1):(next + 1)] #
 
     def centre_word(self, i):
         '''Return the word which contains the i-th position in the sentence.'''
-        utils.check_value_between(i, 0, len(self.sentence))# - 1) # Unsure for unsegmented length
+        utils.check_value_between(i, 0, len(self.sentence) - 1) # No last pos
         prev = self.prev_boundary(i)
         next = self.next_boundary(i)
-        return self.sentence[(prev + 1):(next + 1)] # unsure
+        return self.sentence[(prev + 1):(next + 1)] #
 
     def sample(self, state, temp):
         #if (model_type == 1): # Unigram model
@@ -256,7 +251,7 @@ class Utterance: # Information on one utterance of the document
         #print('Utterance: ', self.sentence, 'boundary: ', self.line_boundaries)
         utils.check_equality(len(self.line_boundaries), len(self.sentence))
 
-        for i in range(len(self.line_boundaries) - 1): #
+        for i in range(len(self.line_boundaries) - 1):
             self.sample_one(i, state, temp)
 
     def sample_one(self, i, state, temp):
@@ -267,7 +262,7 @@ class Utterance: # Information on one utterance of the document
         ### boundaries is the boundary for the utterance only here
         if self.line_boundaries[i]: # Boundary at the i-th position ('yes' case)
             #print('yes case')
-            lexicon.remove_one(left) #lexicon[left] = lexicon[left] - 1
+            lexicon.remove_one(left)
             lexicon.remove_one(right)
             #print(left, lexicon.lexicon[left], right, lexicon.lexicon[right])
         else: # No boundary at the i-th position ('no' case)
@@ -314,7 +309,7 @@ class Utterance: # Information on one utterance of the document
 
     def next_boundary(self, i):
         '''Return the index of the next boundary with respect to i.'''
-        utils.check_value_between(i, 0, len(self.sentence))# - 1)
+        utils.check_value_between(i, 0, len(self.sentence) - 1) # No last pos
         for j in range(i + 1, len(self.line_boundaries)):
             if self.line_boundaries[j] == True:
                 return j
