@@ -62,7 +62,7 @@ def parse_args():
     parser.add_argument('--supervision_boundary_parameter', default=0, type=float,
                         help='parameter value for boundary supervision')
 
-    parser.add_argument('--version', action='version', version='1.2.5')
+    parser.add_argument('--version', action='version', version='1.2.6')
 
     return parser.parse_args()
 
@@ -89,7 +89,8 @@ def main():
     # Initialisation of the model state
     if model_name == 'pypseg':
         main_state = PYPState(data, discount = args.discount,
-                           alpha_1 = args.alpha_1, p_boundary = args.p_boundary)
+                           alpha_1 = args.alpha_1, p_boundary = args.p_boundary,
+                           seed = rnd_seed)
     else: # Default model: dpseg
         if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'): # If supervision
             if args.supervision_method != 'none':
@@ -99,7 +100,7 @@ def main():
                 supervision_data = 'none'
                 #open(args.supervision_file, 'r', encoding = 'utf8').read()
             main_state = SupervisedState(data, alpha_1 = args.alpha_1,
-                         p_boundary = args.p_boundary,
+                         p_boundary = args.p_boundary, seed = rnd_seed,
                          supervision_data = supervision_data,
                          supervision_method = args.supervision_method,
                          supervision_parameter = args.supervision_parameter,

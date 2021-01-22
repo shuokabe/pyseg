@@ -17,7 +17,7 @@ from pyseg.dpseg import Lexicon, State, Utterance
 
 # Unigram case
 class SupervisedState(State): # Information on the whole document
-    def __init__(self, data, alpha_1, p_boundary, supervision_data=None,
+    def __init__(self, data, alpha_1, p_boundary, seed=42, supervision_data=None,
                  supervision_method='none', supervision_parameter=0,
                  supervision_boundary='none', supervision_boundary_parameter=0):
         # State parameters
@@ -28,6 +28,9 @@ class SupervisedState(State): # Information on the whole document
         self.beta = 2 # Hyperparameter?
 
         logging.info(' alpha_1: {0:d}, p_boundary: {1:.1f}'.format(self.alpha_1, self.p_boundary))
+
+        self.seed = seed
+        random_gen_sup = random.Random(self.seed)
 
         # Supervision variable
         self.sup_data = supervision_data # dictionary or text file
@@ -76,7 +79,7 @@ class SupervisedState(State): # Information on the whole document
                 unseg_line = self.unsegmented_list[i]
                 sup_line = sup_data_list[i]
                 utterance = SupervisedUtterance(
-                    unseg_line, sup_line, p_boundary,
+                    unseg_line, sup_line, p_boundary, random_gen_sup,
                     self.sup_boundary_method, self.sup_boundary_parameter,
                     supervision_bool)
                 self.utterances.append(utterance)
@@ -293,13 +296,15 @@ class SupervisedState(State): # Information on the whole document
 
 # Utterance in unigram case
 class SupervisedUtterance(Utterance): # Information on one utterance of the document
-    def __init__(self, sentence, sup_sentence, p_segment,
+    def __init__(self, sentence, sup_sentence, p_segment, random_gen,
                  sup_boundary_method='none', sup_boundary_parameter='none',
                  supervision_bool=False):
         self.sentence = sentence # Unsegmented utterance str
         self.sup_sentence = sup_sentence # Supervision sentence (with spaces)
         self.p_segment = p_segment
         utils.check_probability(p_segment)
+
+        self.random_gen = random_gen
 
         self.line_boundaries = [] # Test to store boundary existence
         self.init_boundary() #
@@ -322,10 +327,10 @@ class SupervisedUtterance(Utterance): # Information on one utterance of the docu
     def init_sup_boundaries(self):
         boundary_track = 0
         unseg_length = len(self.sentence)
-        random_state = random.getstate() # Avoid issues with random numbers
+        #random_state = random.getstate() # Avoid issues with random numbers
         for i in range(unseg_length - 1):
             if self.sup_boundary_method == 'random':
-                rand_val = random.random()
+                rand_val = self.random_gen.random() #random.random()
                 if rand_val >= self.sup_boundary_parameter:
                     self.sup_boundaries.append(-1)
                     if self.sup_sentence[boundary_track + 1] == ' ':
@@ -334,7 +339,7 @@ class SupervisedUtterance(Utterance): # Information on one utterance of the docu
                     continue
             if self.sup_sentence[boundary_track + 1] == ' ': # Boundary case
                 if self.sup_boundary_method == 'true':
-                    rand_val = random.random()
+                    rand_val = self.random_gen.random() #random.random()
                     if rand_val >= self.sup_boundary_parameter:
                         self.sup_boundaries.append(-1)
                         boundary_track += 1
@@ -348,7 +353,7 @@ class SupervisedUtterance(Utterance): # Information on one utterance of the docu
                     self.sup_boundaries.append(0)
             boundary_track += 1
         self.sup_boundaries.append(1)
-        random.setstate(random_state)
+        #random.setstate(random_state)
 
     #def get_sup_boundary(self, boundary_track):
     #    if self.sup_sentence[boundary_track + 1] == ' ': # Boundary case
@@ -379,10 +384,13 @@ class SupervisedUtterance(Utterance): # Information on one utterance of the docu
 
         if self.line_boundaries[i] == self.sup_boundaries[i]:
             return # No sampling if correct boundary status
+        else:
+            pass
+        
         ### boundaries is the boundary for the utterance only here
         if self.line_boundaries[i]: # Boundary at the i-th position ('yes' case)
             #print('yes case')
-            lexicon.remove_one(left) #lexicon[left] = lexicon[left] - 1
+            lexicon.remove_one(left)
             lexicon.remove_one(right)
             #print(left, lexicon.lexicon[left], right, lexicon.lexicon[right])
         else: # No boundary at the i-th position ('no' case)

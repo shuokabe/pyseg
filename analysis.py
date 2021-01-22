@@ -76,10 +76,10 @@ def get_boundaries(text_list):
         unseg_length = len(utils.unsegmented(line))
         for i in range(unseg_length - 1):
             if line[boundary_track + 1] == ' ':
-                line_boundaries += [True]
+                line_boundaries.append(True)
                 boundary_track += 1
             else:
-                line_boundaries += [False]
+                line_boundaries.append(False)
             boundary_track += 1
         boundaries += [line_boundaries]
     return boundaries
