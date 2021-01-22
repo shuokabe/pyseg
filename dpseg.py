@@ -99,13 +99,13 @@ class State: # Information on the whole document
 
         # Variable to store alphabet, utterance, and lexicon information
         self.utterances = [] # # Stored utterances
-        self.boundaries = [] # In case a boundary element is needed
+        #self.boundaries = [] # In case a boundary element is needed
 
         for unseg_line in self.unsegmented_list: # rewrite with correct variable names
             # do next_reference function
             utterance = Utterance(unseg_line, p_boundary)
             self.utterances.append(utterance)
-            self.boundaries.append(utterance.line_boundaries)
+            #self.boundaries.append(utterance.line_boundaries)
 
         self.n_utterances = len(self.utterances) # Number of utterances
 
@@ -172,7 +172,7 @@ class State: # Information on the whole document
         #word_counts.check_invariant() #
         # The input text is the unsegmented text in a list type
 
-        utils.check_equality(len(self.boundaries), self.n_utterances) # See if needed
+        utils.check_equality(len(self.utterances), self.n_utterances) # See if needed
         for utterance in self.utterances: #
             #print('Utterance: ', utterance, 'boundary: ', boundary_utt)
             utterance.sample(self, temp) # model_type = 1
@@ -184,23 +184,28 @@ class State: # Information on the whole document
         ###
         '''
         segmented_text = ''
-        utils.check_equality(len(self.boundaries), len(self.unsegmented_list))
-        for i in range(len(self.boundaries)):
+        segmented_text_list = []
+        utils.check_equality(len(self.utterances), len(self.unsegmented_list))
+        for i in range(len(self.utterances)):
             segmented_line_list = []
             unsegmented_line = self.unsegmented_list[i]
+            boundaries_line = self.utterances[i].line_boundaries
             beg = 0
             pos = 0
-            utils.check_equality(len(self.boundaries[i]), len(unsegmented_line))
-            for boundary in self.boundaries[i]: #
+            utils.check_equality(len(boundaries_line), len(unsegmented_line))
+            #utils.check_equality(len(self.boundaries[i]), len(unsegmented_line))
+            #for boundary in self.boundaries[i]: #
+            for boundary in boundaries_line:
                 if boundary: # If there is a boundary
                     segmented_line_list += [unsegmented_line[beg:(pos + 1)]]
                     beg = pos + 1
                 pos += 1
             # Convert list of words into a string sentence
             segmented_line = ' '.join(segmented_line_list)
+            #segmented_text_list.append(segmented_line)
             segmented_text += segmented_line + '\n'
 
-        return segmented_text
+        return segmented_text #'\n'.join(segmented_text_list)
 
 
 # Utterance in unigram case

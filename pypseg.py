@@ -129,13 +129,13 @@ class PYPState(State): # Information on the whole document
 
         # Variable to store alphabet, utterance, and lexicon information
         self.utterances = [] # # Stored utterances
-        self.boundaries = [] # In case a boundary element is needed
+        #self.boundaries = [] # In case a boundary element is needed
 
         for unseg_line in self.unsegmented_list: # rewrite with correct variable names
             # do next_reference function
             utterance = PYPUtterance(unseg_line, p_boundary)
             self.utterances.append(utterance)
-            self.boundaries.append(utterance.line_boundaries)
+            #self.boundaries.append(utterance.line_boundaries)
 
         self.n_utterances = len(self.utterances) # Number of utterances
 

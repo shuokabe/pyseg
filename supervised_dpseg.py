@@ -1,5 +1,6 @@
 import collections
 import logging
+import numpy as np
 import random
 
 from scipy.stats import poisson
@@ -49,7 +50,7 @@ class SupervisedState(State): # Information on the whole document
 
         # Variable to store alphabet, utterance, and lexicon information
         self.utterances = [] #? # Stored utterances
-        self.boundaries = [] # In case a boundary element is needed
+        #self.boundaries = [] # In case a boundary element is needed
 
         if self.sup_boundary_method != 'none': # Boundary supervision
             #if self.unsegmented != utils.unsegmented(self.sup_data):
@@ -59,20 +60,42 @@ class SupervisedState(State): # Information on the whole document
             self.sup_boundaries = [] # Stored supervision boundaries
             sup_data_list = utils.text_to_line(data, True) #self.sup_data
             utils.check_equality(len(self.unsegmented_list), len(sup_data_list))
+
+            supervision_bool = False
+            if self.sup_boundary_method == 'sentence':
+                supervision_bool = True
+                if self.sup_boundary_parameter < 1: # Ratio case
+                    supervision_index = int(np.ceil(self.sup_boundary_parameter * len(self.unsegmented_list)))
+                    print('Supervision index:', supervision_index)
+                else: # Index case
+                    supervision_index = self.sup_boundary_parameter
             for i in range(len(self.unsegmented_list)): # rewrite with correct variable names
+                if (self.sup_boundary_method == 'sentence') \
+                    and (i >= supervision_index): # End of supervision
+                    supervision_bool = False
                 unseg_line = self.unsegmented_list[i]
                 sup_line = sup_data_list[i]
                 utterance = SupervisedUtterance(
                     unseg_line, sup_line, p_boundary,
-                    self.sup_boundary_method, self.sup_boundary_parameter)
+                    self.sup_boundary_method, self.sup_boundary_parameter,
+                    supervision_bool)
                 self.utterances.append(utterance)
-                self.boundaries.append(utterance.line_boundaries)
+                #self.boundaries.append(utterance.line_boundaries)
                 self.sup_boundaries.append(utterance.sup_boundaries)
+
+            # Count number of supervision boundaries
+            #print(self.sup_boundaries)
+            flat_sup_boundaries = [boundary for boundaries in self.sup_boundaries for boundary in boundaries]
+            print('Number of boundaries:', len(flat_sup_boundaries))
+            counter_sup_boundaries = collections.Counter(flat_sup_boundaries)
+            print('Counter of boundaries:', counter_sup_boundaries)
+            print('Ratio supervision boundary', (counter_sup_boundaries[1] + counter_sup_boundaries[0]) / len(flat_sup_boundaries))
+
         else: # Dictionary supervision (or no supervision) case
             for unseg_line in self.unsegmented_list: # rewrite with correct variable names
                 utterance = Utterance(unseg_line, p_boundary)
                 self.utterances.append(utterance)
-                self.boundaries.append(utterance.line_boundaries)
+                #self.boundaries.append(utterance.line_boundaries)
 
         self.n_utterances = len(self.utterances) # Number of utterances
 
@@ -271,7 +294,8 @@ class SupervisedState(State): # Information on the whole document
 # Utterance in unigram case
 class SupervisedUtterance(Utterance): # Information on one utterance of the document
     def __init__(self, sentence, sup_sentence, p_segment,
-                 sup_boundary_method='none', sup_boundary_parameter='none'):
+                 sup_boundary_method='none', sup_boundary_parameter='none',
+                 supervision_bool=False):
         self.sentence = sentence # Unsegmented utterance str
         self.sup_sentence = sup_sentence # Supervision sentence (with spaces)
         self.p_segment = p_segment
@@ -285,38 +309,57 @@ class SupervisedUtterance(Utterance): # Information on one utterance of the docu
         self.sup_boundary_parameter = sup_boundary_parameter
 
         self.sup_boundaries = []
-        self.init_sup_boundaries()
+        if (self.sup_boundary_method == 'sentence') and not supervision_bool:
+            self.sup_boundaries  = [-1] * (len(self.sentence))
+        else:
+            self.init_sup_boundaries()
 
         utils.check_equality(len(self.sentence), len(self.sup_boundaries))
+
 
     #def init_boundary(self):
 
     def init_sup_boundaries(self):
         boundary_track = 0
         unseg_length = len(self.sentence)
+        random_state = random.getstate() # Avoid issues with random numbers
         for i in range(unseg_length - 1):
-            boundary_track = self.get_sup_boundary(boundary_track)
-            #if self.sup_sentence[boundary_track + 1] == ' ': # Boundary case
-            #    self.sup_boundaries.append(1)
-            #    boundary_track += 1
-            #else: # No boundary case
-            #    if self.sup_boundary_method == 'true':
-            #        self.sup_boundaries.append(-1)
-            #    else:
-            #        self.sup_boundaries.append(0)
-            #boundary_track += 1
-        self.sup_boundaries.append(1)
-
-    def get_sup_boundary(self, boundary_track):
-        if self.sup_sentence[boundary_track + 1] == ' ': # Boundary case
-            self.sup_boundaries.append(1)
+            if self.sup_boundary_method == 'random':
+                rand_val = random.random()
+                if rand_val >= self.sup_boundary_parameter:
+                    self.sup_boundaries.append(-1)
+                    if self.sup_sentence[boundary_track + 1] == ' ':
+                        boundary_track += 1
+                    boundary_track += 1
+                    continue
+            if self.sup_sentence[boundary_track + 1] == ' ': # Boundary case
+                if self.sup_boundary_method == 'true':
+                    rand_val = random.random()
+                    if rand_val >= self.sup_boundary_parameter:
+                        self.sup_boundaries.append(-1)
+                        boundary_track += 1
+                        continue
+                self.sup_boundaries.append(1)
+                boundary_track += 1
+            else: # No boundary case
+                if self.sup_boundary_method == 'true':
+                    self.sup_boundaries.append(-1)
+                else:
+                    self.sup_boundaries.append(0)
             boundary_track += 1
-        else: # No boundary case
-            if self.sup_boundary_method == 'true':
-                self.sup_boundaries.append(-1)
-            else:
-                self.sup_boundaries.append(0)
-        return boundary_track + 1
+        self.sup_boundaries.append(1)
+        random.setstate(random_state)
+
+    #def get_sup_boundary(self, boundary_track):
+    #    if self.sup_sentence[boundary_track + 1] == ' ': # Boundary case
+    #        self.sup_boundaries.append(1)
+    #        boundary_track += 1
+    #    else: # No boundary case
+    #        if self.sup_boundary_method == 'true':
+    #            self.sup_boundaries.append(-1)
+    #        else:
+    #            self.sup_boundaries.append(0)
+    #    return boundary_track + 1
 
     #def numer_base(self, word, state):
 
@@ -333,6 +376,9 @@ class SupervisedUtterance(Utterance): # Information on one utterance of the docu
         left = self.left_word(i)
         right = self.right_word(i)
         centre = self.centre_word(i)
+
+        if self.line_boundaries[i] == self.sup_boundaries[i]:
+            return # No sampling if correct boundary status
         ### boundaries is the boundary for the utterance only here
         if self.line_boundaries[i]: # Boundary at the i-th position ('yes' case)
             #print('yes case')
@@ -381,6 +427,9 @@ class SupervisedUtterance(Utterance): # Information on one utterance of the docu
                 #print('No boundary case')
                 self.line_boundaries[i] = False
                 lexicon.add_one(centre)
+
+        if self.sup_boundaries[i] >= 0:
+            utils.check_equality(self.sup_boundaries[i], self.line_boundaries[i])
 
     #def prev_boundary(self, i):
 
