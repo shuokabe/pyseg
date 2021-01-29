@@ -23,10 +23,10 @@ class Statistics:
 
     def lexicon_text(self):
         '''Create the lexicon (Counter) of the text.'''
-        counter = Counter()
+        list_word = []
         for split_line in self.split_utterances:
-            counter += Counter(split_line) # Keep counter type
-        return counter
+            list_word += split_line
+        return Counter(list_word) 
 
     def average_token_length(self):
         '''Return the average length of tokens.'''
@@ -91,8 +91,8 @@ def boundaries_eval(gold_boundaries, segmented_boundaries):
     print(boundary_counts)
 
     tp = boundary_counts[(True, True)]
-    b_precision = tp / (tp + boundary_counts[(False, True)]) #precision(tp, boundary_counts[(False, True)]) # FP
-    b_recall = tp / (tp + boundary_counts[(True, False)]) #recall(tp, boundary_counts[(True, False)]) # FN
+    b_precision = tp / (tp + boundary_counts[(False, True)])
+    b_recall = tp / (tp + boundary_counts[(True, False)])
     b_f_score = f_measure(b_precision, b_recall)
 
     return b_precision, b_recall, b_f_score
@@ -152,7 +152,7 @@ def evaluate(reference, segmented):
 
     # Boundary metrics (BP, BR, and BF)
     boundary_tp = boundary_counts[(True, True)]
-    bp = boundary_tp / (boundary_tp + boundary_counts[(False, True)]) #precision(tp, boundary_counts[(False, True)]) # FP
+    bp = boundary_tp / (boundary_tp + boundary_counts[(False, True)])
     br = boundary_tp / (boundary_tp + boundary_counts[(True, False)])
     bf = f_measure(bp, br)
 

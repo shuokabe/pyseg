@@ -23,7 +23,7 @@ class SupervisedState(State): # Information on the whole document
         # State parameters
         self.alpha_1 = alpha_1
         self.p_boundary = p_boundary
-        utils.check_probability(p_boundary)
+        utils.check_probability(self.p_boundary)
 
         self.beta = 2 # Hyperparameter?
 
@@ -39,29 +39,28 @@ class SupervisedState(State): # Information on the whole document
         self.sup_boundary_method = supervision_boundary
         self.sup_boundary_parameter = supervision_boundary_parameter
 
-        if self.sup_method != 'none': #else: # Dictionary supervision
+        if self.sup_method != 'none': # Dictionary supervision
             logging.info('Supervision with a dictionary')
-            logging.info(' Supervision method: {0:s}, supervision parameter: {1:.2f}'.format(self.sup_method, self.sup_parameter))
+            logging.info(' Supervision method: {0:s}, supervision parameter: {1:.2f}'.format(
+                         self.sup_method, self.sup_parameter))
         if self.sup_boundary_method != 'none': # Boundary supervision
             logging.info('Supervision with segmentation boundaries')
-            logging.info(' Boundary supervision method: {0:s}, boundary supervision parameter: {1:.2f}'.format(self.sup_boundary_method, self.sup_boundary_parameter))
+            logging.info(' Boundary supervision method: {0:s}, '
+                         'boundary supervision parameter: {1:.2f}'.format(
+                         self.sup_boundary_method, self.sup_boundary_parameter))
 
         # Data and Utterance object
-        self.unsegmented = utils.unsegmented(data) #datafile.unsegmented(data)
+        self.unsegmented = utils.unsegmented(data)
         self.unsegmented_list = utils.text_to_line(self.unsegmented, True) # Remove empty string
-        #self.unsegmented_list = utils.delete_value_from_vector(self.unsegmented_list, '') # Remove empty string
 
         # Variable to store alphabet, utterance, and lexicon information
-        self.utterances = [] #? # Stored utterances
-        #self.boundaries = [] # In case a boundary element is needed
+        self.utterances = [] # Stored Utterance objects
 
         if self.sup_boundary_method != 'none': # Boundary supervision
             #if self.unsegmented != utils.unsegmented(self.sup_data):
             #    raise ValueError('The supervision data must have the same content as the input text.')
-            #else:
-            #    pass
             self.sup_boundaries = [] # Stored supervision boundaries
-            sup_data_list = utils.text_to_line(data, True) #self.sup_data
+            sup_data_list = utils.text_to_line(data, True)
             utils.check_equality(len(self.unsegmented_list), len(sup_data_list))
 
             supervision_bool = False
@@ -79,11 +78,10 @@ class SupervisedState(State): # Information on the whole document
                 unseg_line = self.unsegmented_list[i]
                 sup_line = sup_data_list[i]
                 utterance = SupervisedUtterance(
-                    unseg_line, sup_line, p_boundary, random_gen_sup,
+                    unseg_line, sup_line, self.p_boundary, random_gen_sup,
                     self.sup_boundary_method, self.sup_boundary_parameter,
                     supervision_bool)
                 self.utterances.append(utterance)
-                #self.boundaries.append(utterance.line_boundaries)
                 self.sup_boundaries.append(utterance.sup_boundaries)
 
             # Count number of supervision boundaries
@@ -96,16 +94,14 @@ class SupervisedState(State): # Information on the whole document
 
         else: # Dictionary supervision (or no supervision) case
             for unseg_line in self.unsegmented_list: # rewrite with correct variable names
-                utterance = Utterance(unseg_line, p_boundary)
+                utterance = Utterance(unseg_line, self.p_boundary)
                 self.utterances.append(utterance)
-                #self.boundaries.append(utterance.line_boundaries)
 
         self.n_utterances = len(self.utterances) # Number of utterances
 
         # Lexicon object (Counter)
         self.word_counts = Lexicon() # Word counter
         init_segmented_list = utils.text_to_line(self.get_segmented(), True) # Remove empty string
-        #init_segmented_list = utils.delete_value_from_vector(init_segmented_list, '')
         self.word_counts.init_lexicon_text(init_segmented_list)
 
         if self.sup_method == 'naive':
@@ -158,18 +154,16 @@ class SupervisedState(State): # Information on the whole document
             mean_token_length = sum([word_length * frequency for word_length, frequency in word_length_dict.items()]) / total_frequence
             print('mean TL:', mean_token_length)
             if (chosen_method == 'empirical'):
-                self.word_length_ps = {word_length: frequency / total_frequence for word_length, frequency in word_length_dict.items()}
+                self.word_length_ps = {word_length: frequency / total_frequence
+                                       for word_length, frequency in word_length_dict.items()}
             else:
                 self.word_length_ps = {i: poisson.pmf(i, mean_token_length, loc=1) for i in range(max(word_length_dict.keys()))}
             #self.word_length_ps = {word_length: frequency / total_frequence for word_length, frequency in word_length_dict.items()}
             print('word_length:', self.word_length_ps, sum(self.word_length_ps.values()))
 
             # TODO: make the different cases clearer (and more efficient)
-            if chosen_method in ['bigram', 'trigram']:
-                pass
-            else:
-                letters_in_dict = collections.Counter(words_in_dict_str)
-                frequency_letters_dict = sum(letters_in_dict.values())
+            letters_in_dict = collections.Counter(words_in_dict_str)
+            frequency_letters_dict = sum(letters_in_dict.values())
 
             # TODO: deal with the case letters_in_dict[letter] == 0
             if chosen_method == 'length':
@@ -179,66 +173,54 @@ class SupervisedState(State): # Information on the whole document
             #assert (abs(sum(self.phoneme_ps.values()) - 1.0) < 10^(-5)), 'The sum of the probabilities is not 1.'
             print('Sum of probabilities: {0}'.format(sum(self.phoneme_ps.values())))
 
-        elif self.sup_method in ['init_bigram', 'init_trigram']:
+        elif self.sup_method in ['init_bigram', 'init_trigram', 'mixture_bigram']:
             # Supervision with a dictionary
             logging.info('Phoneme distribution: dictionary supervision')
-            if self.sup_method == 'init_bigram':
+            if self.sup_method in ['init_bigram', 'mixture_bigram']:
                 chosen_method = 'bigram'
             elif self.sup_method == 'init_trigram':
                 chosen_method = 'trigram'
-            else:
+            else: # chosen_method here: 'bigram' and 'trigram'
                 pass
             logging.info(' Chosen initialisation method: {0:s}'.format(chosen_method))
 
             # TODO: make the different cases clearer (and more efficient)
-            if chosen_method in ['bigram', 'trigram']:
-                epsilon = 0.01
-                ngrams_in_dict_list = []
-                for word in self.sup_data.keys():
-                    considered_word = '<{0}>'.format(word)
-                    if chosen_method == 'bigram':
-                        word_ngram_list = [considered_word[i:(i + 2)] for i in range(len(considered_word) - 1)]
-                    elif chosen_method == 'trigram':
-                        word_ngram_list = [considered_word[i:(i + 3)] for i in range(len(considered_word) - 2)]
-                    else:
-                        pass
-                    ngrams_in_dict_list += word_ngram_list
-                ngrams_in_dict = collections.Counter(ngrams_in_dict_list)
-
-                letters_in_dict_list = [ngram[0] for ngram in ngrams_in_dict_list]
-                letters_in_dict = collections.Counter(letters_in_dict_list)
-                print('letters in dict', letters_in_dict)
-                #frequency_ngrams_dict = sum(ngrams_in_dict.values())
-                all_letters = list(letters_in_dict.keys()) + ['>']
-                print(all_letters)
+            epsilon = 0.01 # Smoothing parameter
+            ngrams_in_dict_list = []
+            for word in self.sup_data.keys():
+                considered_word = '<{0}>'.format(word)
                 if chosen_method == 'bigram':
-                    list_all_ngram = ['{0:s}{1:s}'.format(first, second) for first in all_letters for second in all_letters]
+                    word_ngram_list = [considered_word[i:(i + 2)] for i in range(len(considered_word) - 1)]
                 elif chosen_method == 'trigram':
-                    list_all_ngram = ['{0:s}{1:s}{2:s}'.format(first, second, third) for first in all_letters for second in all_letters for third in all_letters]
+                    word_ngram_list = [considered_word[i:(i + 3)] for i in range(len(considered_word) - 2)]
                 else:
                     pass
-                smooth_denominator = epsilon * (len(all_letters))
-                print('Smooth denominator', smooth_denominator)
-                for ngram in list_all_ngram: #ngrams_in_dict.keys():
-                    self.phoneme_ps[ngram] = (ngrams_in_dict[ngram] + epsilon) / (letters_in_dict[ngram[0]] + smooth_denominator) #frequency_ngrams_dict
-                print('Ngram dictionary: {0}'.format(self.phoneme_ps))
+                ngrams_in_dict_list += word_ngram_list
+            ngrams_in_dict = collections.Counter(ngrams_in_dict_list)
+
+            letters_in_dict_list = [ngram[0] for ngram in ngrams_in_dict_list]
+            letters_in_dict = collections.Counter(letters_in_dict_list)
+            print('letters in dict', letters_in_dict)
+            #frequency_ngrams_dict = sum(ngrams_in_dict.values())
+            all_letters = self.alphabet + ['<', '>'] #list(letters_in_dict.keys()) + ['>']
+            #print(all_letters)
+            if chosen_method == 'bigram':
+                list_all_ngram = ['{0:s}{1:s}'.format(first, second)
+                                  for first in all_letters for second in all_letters]
+            elif chosen_method == 'trigram':
+                list_all_ngram = ['{0:s}{1:s}{2:s}'.format(first, second, third)
+                                  for first in all_letters for second in all_letters
+                                  for third in all_letters]
             else:
                 pass
-                #letters_in_dict = collections.Counter(words_in_dict_str)
-                #frequency_letters_dict = sum(letters_in_dict.values())
+            smooth_denominator = epsilon * (len(all_letters))
+            #print('Smooth denominator:', smooth_denominator)
+            for ngram in list_all_ngram: #ngrams_in_dict.keys():
+                self.phoneme_ps[ngram] = (ngrams_in_dict[ngram] + epsilon) \
+                                         / (letters_in_dict[ngram[0]] + smooth_denominator) #frequency_ngrams_dict
+            #print('Ngram dictionary: {0}'.format(self.phoneme_ps))
 
             # TODO: deal with the case letters_in_dict[letter] == 0
-            #if chosen_method == 'length':
-            #    self.phoneme_ps = {letter: 1 / self.alphabet_size for letter in self.alphabet}
-            #elif chosen_method in ['bigram', 'trigram']:
-            #    pass
-            #else:
-            #    self.phoneme_ps = {letter: letters_in_dict[letter] / frequency_letters_dict for letter in self.alphabet}
-            #for letter in self.alphabet:
-                #elif chosen_method == 'bigram':
-                    #pass
-                #else:
-                    #self.phoneme_ps[letter] = letters_in_dict[letter] / frequency_letters_dict
             #assert (abs(sum(self.phoneme_ps.values()) - 1.0) < 10^(-5)), 'The sum of the probabilities is not 1.'
             print('Sum of probabilities: {0}'.format(sum(self.phoneme_ps.values())))
 
@@ -260,8 +242,9 @@ class SupervisedState(State): # Information on the whole document
                 * \prod_1^n phoneme(string_i)
         '''
         p = 1
-        if self.sup_method in ['init_bigram', 'init_trigram']:
-            if self.sup_method == 'init_bigram':
+        # Character model
+        if self.sup_method in ['init_bigram', 'init_trigram', 'mixture_bigram']:
+            if self.sup_method in ['init_bigram', 'mixture_bigram']:
                 n_ngram = 2
             elif self.sup_method == 'init_trigram':
                 n_ngram = 3
@@ -270,18 +253,23 @@ class SupervisedState(State): # Information on the whole document
             considered_word = '<{0}>'.format(string)
             for i in range(len(considered_word) - n_ngram + 1):
                 ngram = considered_word[i:(i + n_ngram)]
-                p = p * self.phoneme_ps.get(ngram, 10 ** (-6))
-        else:
+                #p = p * self.phoneme_ps.get(ngram, 10 ** (-6))
+                p = p * self.phoneme_ps[ngram]
+        else: # Unigram case
             for letter in string:
                 p = p * self.phoneme_ps[letter]
-        p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
-        if self.sup_method == 'mixture':
+            if self.sup_method != 'initialise':
+                p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
+        #p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
+
+        # Explicit length model
+        if self.sup_method in ['mixture', 'mixture_bigram']:
             #print('p before mixture:', p)
             n_words_dict = sum(self.sup_data.values())
             p = self.sup_parameter / n_words_dict * utils.indicator(string, self.sup_data) \
                 + (1 - self.sup_parameter) * p
             #print('p after mixture:', p)
-        elif self.sup_method == 'initialise': #in ['initialise', 'init_bigram', 'init_trigram']:
+        elif self.sup_method == 'initialise':
             #print('p before length:', p)
             p = p * self.word_length_ps.get(len(string), 10 ** (-5))
             #print('p after length:', p)
@@ -306,10 +294,10 @@ class SupervisedUtterance(Utterance): # Information on one utterance of the docu
 
         self.random_gen = random_gen
 
-        self.line_boundaries = [] # Test to store boundary existence
-        self.init_boundary() #
+        self.line_boundaries = []
+        self.init_boundary()
 
-        #'true', 'random', 'sentences'
+        #'true', 'random', 'sentence'
         self.sup_boundary_method = sup_boundary_method
         self.sup_boundary_parameter = sup_boundary_parameter
 
@@ -355,17 +343,6 @@ class SupervisedUtterance(Utterance): # Information on one utterance of the docu
         self.sup_boundaries.append(1)
         #random.setstate(random_state)
 
-    #def get_sup_boundary(self, boundary_track):
-    #    if self.sup_sentence[boundary_track + 1] == ' ': # Boundary case
-    #        self.sup_boundaries.append(1)
-    #        boundary_track += 1
-    #    else: # No boundary case
-    #        if self.sup_boundary_method == 'true':
-    #            self.sup_boundaries.append(-1)
-    #        else:
-    #            self.sup_boundaries.append(0)
-    #    return boundary_track + 1
-
     #def numer_base(self, word, state):
 
     #def left_word(self, i):
@@ -386,7 +363,7 @@ class SupervisedUtterance(Utterance): # Information on one utterance of the docu
             return # No sampling if correct boundary status
         else:
             pass
-        
+
         ### boundaries is the boundary for the utterance only here
         if self.line_boundaries[i]: # Boundary at the i-th position ('yes' case)
             #print('yes case')

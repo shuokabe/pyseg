@@ -129,17 +129,14 @@ class PYPState(State): # Information on the whole document
         # Data and Utterance object
         self.unsegmented = utils.unsegmented(data) #datafile.unsegmented(data)
         self.unsegmented_list = utils.text_to_line(self.unsegmented, True) # Remove empty string
-        #self.unsegmented_list = utils.delete_value_from_vector(self.unsegmented_list, '') # Remove empty string
 
         # Variable to store alphabet, utterance, and lexicon information
-        self.utterances = [] # # Stored utterances
-        #self.boundaries = [] # In case a boundary element is needed
+        self.utterances = [] # Stored Utterance objects
 
         for unseg_line in self.unsegmented_list: # rewrite with correct variable names
             # do next_reference function
-            utterance = PYPUtterance(unseg_line, p_boundary)
+            utterance = PYPUtterance(unseg_line, self.p_boundary)
             self.utterances.append(utterance)
-            #self.boundaries.append(utterance.line_boundaries)
 
         self.n_utterances = len(self.utterances) # Number of utterances
 
@@ -200,8 +197,8 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
         self.p_segment = p_segment
         utils.check_probability(p_segment)
 
-        self.line_boundaries = [] # Test to store boundary existence
-        self.init_boundary() #
+        self.line_boundaries = []
+        self.init_boundary()
 
 
     #def init_boundary(self): # Random case only
@@ -211,9 +208,9 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
         #if word not in state.word_counts.lexicon: # If the word is not in the lexicon
         if word not in state.restaurant.customers: # If the word is not in the lexicon
             base = 0
-        else: # The word is in the lexicon
+        else: # The word is in the lexicon/restaurant
             #base = state.word_counts.lexicon[word] - (state.discount * state.restaurant.tables[word]) # state.discount
-            base = state.restaurant.customers[word] - (state.discount * state.restaurant.tables[word]) # state.discount
+            base = state.restaurant.customers[word] - (state.discount * state.restaurant.tables[word])
         #base += ((state.discount * state.word_counts.n_types) + state.alpha_1) * state.p_word(word)
         base += ((state.discount * state.restaurant.n_tables) + state.alpha_1) * state.p_word(word)
         #print('numer_base: ', base)
@@ -238,7 +235,7 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
         #random_state = random.getstate() # Avoid issues with random numbers
         if self.line_boundaries[i]: # Boundary at the i-th position ('yes' case)
             #print('yes case')
-            lexicon.remove_one(left) #lexicon[left] = lexicon[left] - 1
+            lexicon.remove_one(left) 
             lexicon.remove_one(right)
             restaurant.remove_customer(left) #
             restaurant.remove_customer(right) #

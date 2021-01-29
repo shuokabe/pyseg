@@ -60,11 +60,9 @@ class Lexicon: # Improved dictionary using a Counter
             self.lexicon[word] += -1
         elif (self.lexicon[word] == 1): # If the count for the word is 0
             del self.lexicon[word]
-            self.n_types += -1 # # Remove the word from the lexicon
+            self.n_types += -1 # Remove the word from the lexicon
         else:
             raise KeyError('The word %s is not in the lexicon.' % word)
-        #+self.lexicon # Remove types with 0 occurrence
-        #self.lexicon = self.lexicon - collections.Counter(word = 1)
         #self.update_lex_size()
         self.n_tokens += -1 # Remove one token
 
@@ -86,26 +84,23 @@ class State: # Information on the whole document
         # State parameters
         self.alpha_1 = alpha_1
         self.p_boundary = p_boundary
-        utils.check_probability(p_boundary)
+        utils.check_probability(self.p_boundary)
 
         self.beta = 2 # Hyperparameter?
 
         logging.info(' alpha_1: {0:d}, p_boundary: {1:.1f}'.format(self.alpha_1, self.p_boundary))
 
         # Data and Utterance object
-        self.unsegmented = utils.unsegmented(data) #datafile.unsegmented(data)
+        self.unsegmented = utils.unsegmented(data)
         self.unsegmented_list = utils.text_to_line(self.unsegmented, True) # Remove empty string
-        #self.unsegmented_list = utils.delete_value_from_vector(self.unsegmented_list, '') # Remove empty string
 
         # Variable to store alphabet, utterance, and lexicon information
-        self.utterances = [] # # Stored utterances
-        #self.boundaries = [] # In case a boundary element is needed
+        self.utterances = [] # Stored Utterance objects
 
         for unseg_line in self.unsegmented_list: # rewrite with correct variable names
             # do next_reference function
-            utterance = Utterance(unseg_line, p_boundary)
+            utterance = Utterance(unseg_line, self.p_boundary)
             self.utterances.append(utterance)
-            #self.boundaries.append(utterance.line_boundaries)
 
         self.n_utterances = len(self.utterances) # Number of utterances
 
@@ -215,8 +210,8 @@ class Utterance: # Information on one utterance of the document
         self.p_segment = p_segment
         utils.check_probability(p_segment)
 
-        self.line_boundaries = [] #
-        self.init_boundary() #
+        self.line_boundaries = []
+        self.init_boundary()
 
     def init_boundary(self): # Random case only
         for i in range(len(self.sentence) - 1): # Unsure for the range

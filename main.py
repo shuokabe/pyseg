@@ -52,7 +52,9 @@ def parse_args():
     parser.add_argument('--supervision_file', default='none', type=str,
                         help='file name of the data used for supervision')
     parser.add_argument('--supervision_method', default='none', type=str,
-                        choices=['none', 'naive', 'naive_freq', 'mixture', 'initialise', 'init_bigram', 'init_trigram'],
+                        choices=['none', 'naive', 'naive_freq', 'mixture',
+                        'mixture_bigram', 'initialise', 'init_bigram',
+                        'init_trigram'],
                         help='supervision method (word dictionary)')
     parser.add_argument('--supervision_parameter', default=0, type=float,
                         help='parameter value for (dictionary) supervision')
@@ -62,7 +64,7 @@ def parse_args():
     parser.add_argument('--supervision_boundary_parameter', default=0, type=float,
                         help='parameter value for boundary supervision')
 
-    parser.add_argument('--version', action='version', version='1.2.6')
+    parser.add_argument('--version', action='version', version='1.2.7')
 
     return parser.parse_args()
 
@@ -80,7 +82,7 @@ def main():
     data = open(filename, 'r', encoding = 'utf8').read()
     model_name = args.model
 
-    logging.info('Segmenting {0:s} using {1:s}\'s unigram model.'.format(filename, model_name))
+    logging.info(f'Segmenting {filename} using {model_name}\'s unigram model.') #.format(filename, model_name))
     logging.info('Boundary initialisation: random') #
 
     #set_init(b_init) # Copy from segment.cc
@@ -111,7 +113,7 @@ def main():
                          p_boundary = args.p_boundary)
 
     iters = args.iterations
-    logging.info('Sampling {:d} iterations.'.format(iters))
+    logging.info(f'Sampling {iters} iterations.') #.format(iters))
 
     logging.info('Evaluating a sample')
 
@@ -142,12 +144,16 @@ def main():
             pass
         else:
             utils.check_equality(main_state.word_counts.n_types, len(main_state.word_counts.lexicon))
-            utils.check_equality(main_state.word_counts.n_tokens, sum(main_state.word_counts.lexicon.values()))
+            utils.check_equality(main_state.word_counts.n_tokens,
+                                 sum(main_state.word_counts.lexicon.values()))
 
     logging.info('{:d} iterations'.format(iters))
     if model_name == 'pypseg':
-        utils.check_value_between(main_state.restaurant.n_tables, main_state.word_counts.n_types, main_state.word_counts.n_tokens)
-        utils.check_equality((sum(main_state.restaurant.customers.values())), main_state.word_counts.n_tokens)
+        utils.check_value_between(main_state.restaurant.n_tables,
+                                  main_state.word_counts.n_types,
+                                  main_state.word_counts.n_tokens)
+        utils.check_equality((sum(main_state.restaurant.customers.values())),
+                              main_state.word_counts.n_tokens)
         utils.check_equality(main_state.restaurant.n_customers, main_state.word_counts.n_tokens)
         logging.debug('{} tables'.format(main_state.restaurant.n_tables))
         #print('Restaurant', main_state.restaurant.restaurant)
@@ -166,6 +172,20 @@ def main():
     # Evaluation results
     results = evaluate(data, segmented_text)
     logging.info('Evaluation metrics: %s' % results)
+
+    # For boundary supervision with segmented sentences
+    if args.supervision_boundary == 'sentence':
+        logging.info('Without the given sentences:')
+        split_gold = utils.text_to_line(data, True)
+        split_seg = utils.text_to_line(segmented_text, True)
+        supervision_index = int(args.supervision_boundary_parameter)
+        remain_gold = '\n'.join(split_gold[supervision_index:]) + '\n'
+        remain_seg = '\n'.join(split_seg[supervision_index:]) + '\n'
+        remain_stats = Statistics(remain_seg)
+        logging.info(' Remaining statistics: %s' % (remain_stats.stats))
+        remain_results = evaluate(remain_gold, remain_seg)
+        logging.info(' Remaining evaluation metrics: %s' % (remain_results))
+
 
     # Output file (log + segmented text)
     output_file = args.output_file_base + '.txt'
