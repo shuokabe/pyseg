@@ -88,7 +88,7 @@ class State: # Information on the whole document
 
         self.beta = 2 # Hyperparameter?
 
-        logging.info(' alpha_1: {0:d}, p_boundary: {1:.1f}'.format(self.alpha_1, self.p_boundary))
+        logging.info(f' alpha_1: {self.alpha_1:d}, p_boundary: {self.p_boundary:.1f}') #.format(self.alpha_1, self.p_boundary))
 
         # Data and Utterance object
         self.unsegmented = utils.unsegmented(data)

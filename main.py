@@ -82,7 +82,7 @@ def main():
     data = open(filename, 'r', encoding = 'utf8').read()
     model_name = args.model
 
-    logging.info(f'Segmenting {filename} using {model_name}\'s unigram model.') #.format(filename, model_name))
+    logging.info(f'Segmenting {filename:s} using {model_name:s}\'s unigram model.')
     logging.info('Boundary initialisation: random') #
 
     #set_init(b_init) # Copy from segment.cc
@@ -113,11 +113,11 @@ def main():
                          p_boundary = args.p_boundary)
 
     iters = args.iterations
-    logging.info(f'Sampling {iters} iterations.') #.format(iters))
+    logging.info(f'Sampling {iters:d} iterations.')
 
     logging.info('Evaluating a sample')
 
-    logging.info('Random seed = {:d}'.format(rnd_seed))
+    logging.info(f'Random seed = {rnd_seed:d}')
     logging.info('Alphabet size = {:d}'.format(main_state.alphabet_size))
 
     temp_incr = 10 # How many increments of temperature to get to T = 1
@@ -127,34 +127,37 @@ def main():
 
     # List of temp_incr temperatures (floats)
     temperatures = np.linspace(0.1, 1, temp_incr)
-    logging.info('Raising temperature in {0:d} increments: {1}'.format(temp_incr, temperatures))
+    logging.info(f'Raising temperature in {temp_incr:d} increments: {temperatures}')
 
     # Begin sampling loop
     temp_index = 0
     temp = temperatures[temp_index]
-    logging.info('iter 0: temp = {:.1f}'.format(temp))
+    logging.info(f'iter 0: temp = {temp:.1f}')
     for i in tqdm(range(1, iters + 1)):
         if ((i % iter_incr) == 0) and (i != iters): # Change temperature
             temp_index += 1
             temp = temperatures[temp_index]
-            logging.info('iter {0:d}: temp = {1:.1f}'.format(i, temp))
+            logging.info(f'iter {i:d}: temp = {temp:.1f}') #.format(i, temp))
 
         main_state.sample(temp)
         if args.supervision_method in ['naive', 'naive_freq']:
             pass
+        elif model_name == 'pypseg':
+            utils.check_equality(main_state.restaurant.n_customers, sum(main_state.restaurant.customers.values()))
+            utils.check_equality(main_state.restaurant.n_tables, sum(main_state.restaurant.tables.values()))
         else:
             utils.check_equality(main_state.word_counts.n_types, len(main_state.word_counts.lexicon))
             utils.check_equality(main_state.word_counts.n_tokens,
                                  sum(main_state.word_counts.lexicon.values()))
 
-    logging.info('{:d} iterations'.format(iters))
+    logging.info(f'{iters:d} iterations')
     if model_name == 'pypseg':
-        utils.check_value_between(main_state.restaurant.n_tables,
-                                  main_state.word_counts.n_types,
-                                  main_state.word_counts.n_tokens)
-        utils.check_equality((sum(main_state.restaurant.customers.values())),
-                              main_state.word_counts.n_tokens)
-        utils.check_equality(main_state.restaurant.n_customers, main_state.word_counts.n_tokens)
+        #utils.check_value_between(main_state.restaurant.n_tables,
+        #                          main_state.word_counts.n_types,
+        #                          main_state.word_counts.n_tokens)
+        #utils.check_equality((sum(main_state.restaurant.customers.values())),
+        #                      main_state.word_counts.n_tokens)
+        #utils.check_equality(main_state.restaurant.n_customers, main_state.word_counts.n_tokens)
         logging.debug('{} tables'.format(main_state.restaurant.n_tables))
         #print('Restaurant', main_state.restaurant.restaurant)
 

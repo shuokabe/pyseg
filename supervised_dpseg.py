@@ -27,7 +27,8 @@ class SupervisedState(State): # Information on the whole document
 
         self.beta = 2 # Hyperparameter?
 
-        logging.info(' alpha_1: {0:d}, p_boundary: {1:.1f}'.format(self.alpha_1, self.p_boundary))
+        #logging.info(' alpha_1: {0:d}, p_boundary: {1:.1f}'.format(self.alpha_1, self.p_boundary))
+        logging.info(f' alpha_1: {self.alpha_1:d}, p_boundary: {self.p_boundary:.1f}')
 
         self.seed = seed
         random_gen_sup = random.Random(self.seed)
@@ -41,8 +42,10 @@ class SupervisedState(State): # Information on the whole document
 
         if self.sup_method != 'none': # Dictionary supervision
             logging.info('Supervision with a dictionary')
-            logging.info(' Supervision method: {0:s}, supervision parameter: {1:.2f}'.format(
-                         self.sup_method, self.sup_parameter))
+            logging.info(f' Supervision method: {self.sup_method:s}, '
+                         f'supervision parameter: {self.sup_parameter:.2f}')
+            #logging.info(' Supervision method: {0:s}, supervision parameter: {1:.2f}'.format(
+            #             self.sup_method, self.sup_parameter))
         if self.sup_boundary_method != 'none': # Boundary supervision
             logging.info('Supervision with segmentation boundaries')
             logging.info(' Boundary supervision method: {0:s}, '
@@ -90,7 +93,8 @@ class SupervisedState(State): # Information on the whole document
             print('Number of boundaries:', len(flat_sup_boundaries))
             counter_sup_boundaries = collections.Counter(flat_sup_boundaries)
             print('Counter of boundaries:', counter_sup_boundaries)
-            print('Ratio supervision boundary', (counter_sup_boundaries[1] + counter_sup_boundaries[0]) / len(flat_sup_boundaries))
+            print('Ratio supervision boundary:', (counter_sup_boundaries[1] +
+                   counter_sup_boundaries[0]) / len(flat_sup_boundaries))
 
         else: # Dictionary supervision (or no supervision) case
             for unseg_line in self.unsegmented_list: # rewrite with correct variable names
@@ -140,7 +144,7 @@ class SupervisedState(State): # Information on the whole document
             logging.info('Phoneme distribution: dictionary supervision')
 
             chosen_method = 'empirical'
-            logging.info(' Chosen initialisation method: {0:s}'.format(chosen_method))
+            logging.info(f' Chosen initialisation method: {chosen_method}') #.format(chosen_method))
 
             words_in_dict_str = ''
             word_length_dict = dict()
@@ -148,17 +152,19 @@ class SupervisedState(State): # Information on the whole document
                 words_in_dict_str += word #* frequency # For letter probabilities
                 word_length = len(word)
                 word_length_dict.setdefault(word_length, 0)
-                word_length_dict[word_length] += 1 #= word_length_dict.get(len(word), 0) + 1 #frequency # For length probabilities
+                word_length_dict[word_length] += 1 #= word_length_dict.get(len(word), 0) + 1 # For length probabilities
             print('words in dict_str:', words_in_dict_str[0:50])
             total_frequence = sum(word_length_dict.values())
-            mean_token_length = sum([word_length * frequency for word_length, frequency in word_length_dict.items()]) / total_frequence
+            mean_token_length = sum([word_length * frequency
+                                     for word_length, frequency in word_length_dict.items()]
+                                ) / total_frequence
             print('mean TL:', mean_token_length)
             if (chosen_method == 'empirical'):
                 self.word_length_ps = {word_length: frequency / total_frequence
                                        for word_length, frequency in word_length_dict.items()}
             else:
-                self.word_length_ps = {i: poisson.pmf(i, mean_token_length, loc=1) for i in range(max(word_length_dict.keys()))}
-            #self.word_length_ps = {word_length: frequency / total_frequence for word_length, frequency in word_length_dict.items()}
+                self.word_length_ps = {i: poisson.pmf(i, mean_token_length, loc=1)
+                                       for i in range(max(word_length_dict.keys()))}
             print('word_length:', self.word_length_ps, sum(self.word_length_ps.values()))
 
             # TODO: make the different cases clearer (and more efficient)
@@ -166,10 +172,19 @@ class SupervisedState(State): # Information on the whole document
             frequency_letters_dict = sum(letters_in_dict.values())
 
             # TODO: deal with the case letters_in_dict[letter] == 0
-            if chosen_method == 'length':
-                self.phoneme_ps = {letter: 1 / self.alphabet_size for letter in self.alphabet}
-            else:
-                self.phoneme_ps = {letter: letters_in_dict[letter] / frequency_letters_dict for letter in self.alphabet}
+            #if chosen_method == 'length':
+            #    self.phoneme_ps = {letter: 1 / self.alphabet_size for letter in self.alphabet}
+            #else:
+            #    self.phoneme_ps = {letter: letters_in_dict[letter] / frequency_letters_dict
+            #                       for letter in self.alphabet}
+
+            for letter in self.alphabet:
+                if chosen_method == 'length':
+                    #self.phoneme_ps = {letter: 1 / self.alphabet_size}
+                    self.phoneme_ps[letter] = 1 / self.alphabet_size
+                else:
+                    #self.phoneme_ps = {letter: letters_in_dict[letter] / frequency_letters_dict}
+                    self.phoneme_ps[letter] = letters_in_dict[letter] / frequency_letters_dict
             #assert (abs(sum(self.phoneme_ps.values()) - 1.0) < 10^(-5)), 'The sum of the probabilities is not 1.'
             print('Sum of probabilities: {0}'.format(sum(self.phoneme_ps.values())))
 
@@ -262,14 +277,13 @@ class SupervisedState(State): # Information on the whole document
                 p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
         #p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
 
-        # Explicit length model
         if self.sup_method in ['mixture', 'mixture_bigram']:
             #print('p before mixture:', p)
             n_words_dict = sum(self.sup_data.values())
             p = self.sup_parameter / n_words_dict * utils.indicator(string, self.sup_data) \
                 + (1 - self.sup_parameter) * p
             #print('p after mixture:', p)
-        elif self.sup_method == 'initialise':
+        elif self.sup_method == 'initialise': # Explicit length model
             #print('p before length:', p)
             p = p * self.word_length_ps.get(len(string), 10 ** (-5))
             #print('p after length:', p)

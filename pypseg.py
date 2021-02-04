@@ -14,25 +14,64 @@ from pyseg.dpseg import Lexicon, State, Utterance
 
 # Exclusive to pypseg to count the number of tables
 class Restaurant:
+    '''Restaurant class storing table and customer information.
+
+    A restaurant is made of tables flagged with a word label.
+    The same label can be shared by several tables.
+
+    Parameters
+    ----------
+    alpha_1 : integer
+        Unigram concentration parameter
+    discount : float
+        Discount parameter for Pitman-Yor process
+    seed : integer
+        Seed value to generate random values (exclusive to the restaurant)
+
+    Attributes
+    ----------
+    restaurant : dictionary {string: list of integers}
+        Restaurant representing all the tables for each word label.
+        The list of tables contains the number of customers at each table.
+        Format: {word_label: tables (i.e. list of numbers of customers)}
+    tables : dictionary {string: integer}
+        Dictionary summarising the number of tables for a word.
+        Format: {word_label: number of tables}
+    n_tables : integer
+        Total number of tables in the restaurant (sum(self.tables.values()))
+    customers : dictionary {string: integer}
+        Dictionary summarising the number of customers for a word.
+        Format: {word_label: total number of customers for the word}
+    n_customers : integer
+        Total number of customers (sum(self.customers.values()))
+        Equal to Lexicon.n_tokens in dpseg.
+
+    alpha_1 : integer
+        Unigram concentration parameter
+    discount : float
+        Discount parameter for Pitman-Yor process
+    random_gen : Random()
+        Random number generator (exclusive to the restaurant)
+
+    '''
     def __init__(self, alpha_1, discount, seed=42):
-        self.restaurant = dict() # word_label: list of number of customers (tables)
-        self.tables = dict() # word_label: number of tables
-        self.n_tables = 0 # sum(self.tables.values())
-        self.customers = dict() # word_label: total number of customers for the word
-        self.n_customers = 0 # sum(self.customers.values())
+        self.restaurant = dict()
+        self.tables = dict()
+        self.n_tables = 0
+        self.customers = dict()
+        self.n_customers = 0
 
         # Parameters of the model
         self.alpha_1 = alpha_1
         self.discount = discount
-        self.seed = seed
-        self.random_gen = random.Random(self.seed) # Avoid issues with main random numbers
+        #self.seed = seed
+        self.random_gen = random.Random(seed) # Avoid issues with main random numbers
 
     def add_customer(self, word, random_value=None):
         '''Assign a customer (word) to a table in the restaurant.'''
         utils.check_equality(len(self.customers.keys()), len(self.restaurant.keys()))
         if word in self.restaurant.keys(): # Add the customer to a table (possibly new)
             n_customers = self.customers[word]
-            #new_customer = random.randint(1, n_customers + self.alpha_1)
             #random_state = random.getstate() # Avoid issues with random numbers
             if random_value is not None:
                 pass
@@ -82,7 +121,6 @@ class Restaurant:
         else: # More than one table
             n_customers = self.customers[word]
             #random_state = random.getstate() # Avoid issues with random numbers
-            #new_customer = random.randint(1, n_customers)
             new_customer = self.random_gen.random() * n_customers #random.random() * n_customers
             #random.setstate(random_state)
             cumulative_sum = 0
@@ -122,7 +160,8 @@ class PYPState(State): # Information on the whole document
 
         self.beta = 2 # Hyperparameter?
 
-        logging.info(' discount: {0:.1f}, alpha_1: {1:d}, p_boundary: {2:.1f}'.format(self.discount, self.alpha_1, self.p_boundary))
+        logging.info(f' discount: {self.discount:.1f}, '
+                     f'alpha_1: {self.alpha_1:d}, p_boundary: {self.p_boundary:.1f}')
 
         self.seed = seed
 
@@ -141,9 +180,9 @@ class PYPState(State): # Information on the whole document
         self.n_utterances = len(self.utterances) # Number of utterances
 
         # Lexicon object (Counter)
-        self.word_counts = Lexicon() # Word counter
+        #self.word_counts = Lexicon() # Word counter
         init_segmented_list = utils.text_to_line(self.get_segmented(), True) # Remove empty string
-        self.word_counts.init_lexicon_text(init_segmented_list)
+        #self.word_counts.init_lexicon_text(init_segmented_list)
 
         # Tables object to count the number of tables (dict)
         self.restaurant = Restaurant(self.alpha_1, self.discount, self.seed)
@@ -151,10 +190,11 @@ class PYPState(State): # Information on the whole document
         self.restaurant.init_tables(init_segmented_list)
         #random.setstate(random_state)
         #print('Restaurant:', self.restaurant.restaurant)
-        logging.debug('{} tables initially'.format(self.restaurant.n_tables))
-        utils.check_value_between(self.restaurant.n_tables, self.word_counts.n_types, self.word_counts.n_tokens)
-        utils.check_equality((sum(self.restaurant.customers.values())), self.word_counts.n_tokens)
-        utils.check_equality(self.restaurant.n_customers, self.word_counts.n_tokens)
+        logging.debug(f'{self.restaurant.n_tables} tables initially')
+        #utils.check_value_between(self.restaurant.n_tables, self.word_counts.n_types,
+                                   #self.word_counts.n_tokens)
+        #utils.check_equality((sum(self.restaurant.customers.values())), self.word_counts.n_tokens)
+        #utils.check_equality(self.restaurant.n_customers, self.word_counts.n_tokens)
 
         # Alphabet (list of letters)
         self.alphabet = utils.delete_value_from_vector(list(set(self.unsegmented)), '\n')
@@ -169,14 +209,18 @@ class PYPState(State): # Information on the whole document
     #def init_phoneme_probs(self):
 
     # Probabilities
-    #def p_cont(self):
+    def p_cont(self):
+        n_words = self.restaurant.n_customers #self.word_counts.n_tokens
+        p = (n_words - self.n_utterances + 1 + self.beta / 2) / (n_words + 1 + self.beta)
+        utils.check_probability(p)
+        return p
 
     def p_word(self, string):
         '''
         Computes the prior probability of a string of length n:
         p_word = p_boundary * (1 - p_boundary)^(n - 1)
                 * \prod_1^n phoneme(string_i)
-        No alpha_1 in this model.
+        No alpha_1 in this model's function.
         '''
         p = 1
         for letter in string:
@@ -209,7 +253,7 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
         if word not in state.restaurant.customers: # If the word is not in the lexicon
             base = 0
         else: # The word is in the lexicon/restaurant
-            #base = state.word_counts.lexicon[word] - (state.discount * state.restaurant.tables[word]) # state.discount
+            #base = state.word_counts.lexicon[word] - (state.discount * state.restaurant.tables[word])
             base = state.restaurant.customers[word] - (state.discount * state.restaurant.tables[word])
         #base += ((state.discount * state.word_counts.n_types) + state.alpha_1) * state.p_word(word)
         base += ((state.discount * state.restaurant.n_tables) + state.alpha_1) * state.p_word(word)
@@ -226,7 +270,7 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
     #def sample(self, state, temp):
 
     def sample_one(self, i, state, temp):
-        lexicon = state.word_counts
+        #lexicon = state.word_counts
         restaurant = state.restaurant #
         left = self.left_word(i)
         right = self.right_word(i)
@@ -235,19 +279,19 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
         #random_state = random.getstate() # Avoid issues with random numbers
         if self.line_boundaries[i]: # Boundary at the i-th position ('yes' case)
             #print('yes case')
-            lexicon.remove_one(left) 
-            lexicon.remove_one(right)
+            #lexicon.remove_one(left)
+            #lexicon.remove_one(right)
             restaurant.remove_customer(left) #
             restaurant.remove_customer(right) #
             #print(left, lexicon.lexicon[left], right, lexicon.lexicon[right])
         else: # No boundary at the i-th position ('no' case)
             #print('no case')
-            lexicon.remove_one(centre)
+            #lexicon.remove_one(centre)
             restaurant.remove_customer(centre) #
             #print(centre, lexicon.lexicon[centre])
         #random.setstate(random_state)
 
-        denom = lexicon.n_tokens + state.alpha_1
+        denom = restaurant.n_customers + state.alpha_1 #lexicon.n_tokens
         #denom = restaurant.n_customers + state.alpha_1
         #print('denom: ', denom)
         yes = state.p_cont() * self.numer_base(left, state) \
@@ -269,19 +313,19 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
         if (random_value < p_yes):
             #print('Boundary case')
             self.line_boundaries[i] = True
-            lexicon.add_one(left)
-            lexicon.add_one(right)
+            #lexicon.add_one(left)
+            #lexicon.add_one(right)
             restaurant.add_customer(left, random_value) #
             restaurant.add_customer(right, random_value) #
-            utils.check_equality(restaurant.customers[left], lexicon.lexicon[left])
+            #utils.check_equality(restaurant.customers[left], lexicon.lexicon[left])
         else:
             #print('No boundary case')
             self.line_boundaries[i] = False
-            lexicon.add_one(centre)
+            #lexicon.add_one(centre)
             restaurant.add_customer(centre, random_value) #
-            utils.check_equality(restaurant.customers[centre], lexicon.lexicon[centre])
+            #utils.check_equality(restaurant.customers[centre], lexicon.lexicon[centre])
 
-        utils.check_equality(restaurant.n_customers, lexicon.n_tokens)
+        #utils.check_equality(restaurant.n_customers, lexicon.n_tokens)
 
     #def prev_boundary(self, i):
 

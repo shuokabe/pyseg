@@ -11,4 +11,4 @@ The original implementation in C++ can be found [here][2].
 
 
 ## System requirements
-pyseg runs on Python 3.
+pyseg runs on Python 3 (tested on Python 3.6 and 3.8).
