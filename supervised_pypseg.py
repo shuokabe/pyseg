@@ -3,31 +3,97 @@ import logging
 import numpy as np
 import random
 
-from scipy.stats import poisson
-
 from pyseg import utils
 
-# Supervised dpseg model
+# pypseg model
 
 logging.basicConfig(level = logging.DEBUG, format = '[%(asctime)s] %(message)s',
                     datefmt = '%d/%m/%Y %H:%M:%S')
 
-from pyseg.dpseg import Lexicon, State, Utterance
+
+from pyseg.pypseg import Restaurant, PYPState, PYPUtterance
+
+
+# Exclusive to pypseg to count the number of tables
+class Restaurant(Restaurant):
+    #def __init__(self, alpha_1, discount, seed=42):
+
+    def add_naive_word(self, word, sup_parameter):
+        '''Assign a word to a table in the restaurant for the naive method.
+
+        A naive word from the supervision dictionary is not a customer.
+        '''
+        if word in self.restaurant.keys(): # Add the word to a table (possibly new)
+            self.restaurant[word][0] += sup_parameter # Add to the first table
+
+        else: # Open a new table for a new word
+            self.restaurant[word] = [sup_parameter]
+            self.tables[word] = 1
+            self.n_tables += 1
+
+    def add_customer(self, word, random_value=None):
+        '''Assign a customer (word) to a table in the restaurant.
+
+        Modified version due to naive words not being customers.
+        '''
+        #utils.check_equality(len(self.customers.keys()), len(self.restaurant.keys()))
+        if word in self.restaurant.keys(): # Add the customer to a table (possibly new)
+            n_customers = self.customers.get(word, 0)
+            if n_customers >= 1: # The word is currently in the text
+                #n_customers = self.customers[word]
+                random_value = self.random_gen.random()
+                new_customer = random_value * (n_customers + self.alpha_1)
+                utils.check_equality(self.tables[word], len(self.restaurant[word]))
+                if (new_customer > (n_customers - (self.discount * self.tables[word]))):
+                    # Open a new table
+                    self.restaurant[word].append(1)
+                    self.tables[word] += 1
+                    self.n_tables += 1
+                else: # Add the new customer in an existing table
+                    cumulative_sum = 0
+                    for k in range(self.tables[word]):
+                        cumulative_sum += (self.restaurant[word][k] - self.discount)
+                        if new_customer <= cumulative_sum: # Add the customer to that table
+                            self.restaurant[word][k] += 1
+                            break
+                        else:
+                            pass
+            else: # Word from the naive dictionary and not in text
+                # There is only one table
+                self.restaurant[word][0] += 1
+
+            self.customers[word] += 1
+
+        else: # Open a new table for a new word
+            self.restaurant[word] = [1]
+            self.tables[word] = 1
+            self.n_tables += 1
+            self.customers[word] = 1
+
+        self.n_customers += 1
+
+    #def remove_customer(self, word):
+
+    #def init_tables(self, text):
 
 
 # Unigram case
-class SupervisedState(State): # Information on the whole document
-    def __init__(self, data, alpha_1, p_boundary, seed=42, supervision_data=None,
-                 supervision_method='none', supervision_parameter=0,
-                 supervision_boundary='none', supervision_boundary_parameter=0):
+class SupervisedPYPState(PYPState): # Information on the whole document
+    def __init__(self, data, discount, alpha_1, p_boundary, seed=42,
+                 supervision_data=None, supervision_method='none',
+                 supervision_parameter=0, supervision_boundary='none',
+                 supervision_boundary_parameter=0):
         # State parameters
+        self.discount = discount
+        utils.check_value_between(discount, 0, 1)
         self.alpha_1 = alpha_1
         self.p_boundary = p_boundary
-        utils.check_probability(self.p_boundary)
+        utils.check_probability(p_boundary)
 
         self.beta = 2 # Hyperparameter?
 
-        logging.info(f' alpha_1: {self.alpha_1:d}, p_boundary: {self.p_boundary:.1f}')
+        logging.info(f' discount: {self.discount:.1f}, '
+                     f'alpha_1: {self.alpha_1:d}, p_boundary: {self.p_boundary:.1f}')
 
         self.seed = seed
         random_gen_sup = random.Random(self.seed)
@@ -43,24 +109,19 @@ class SupervisedState(State): # Information on the whole document
             logging.info('Supervision with a dictionary')
             logging.info(f' Supervision method: {self.sup_method:s}, '
                          f'supervision parameter: {self.sup_parameter:.2f}')
-            #logging.info(' Supervision method: {0:s}, supervision parameter: {1:.2f}'.format(
-            #             self.sup_method, self.sup_parameter))
         if self.sup_boundary_method != 'none': # Boundary supervision
             logging.info('Supervision with segmentation boundaries')
             logging.info(f' Boundary supervision method: {self.sup_boundary_method:s}, '
                          f'boundary supervision parameter: {self.sup_boundary_parameter:.2f}')
-                         #.format(self.sup_boundary_method, self.sup_boundary_parameter))
 
         # Data and Utterance object
-        self.unsegmented = utils.unsegmented(data)
-        self.unsegmented_list = utils.text_to_line(self.unsegmented, True) # Remove empty string
+        self.unsegmented = utils.unsegmented(data) #datafile.unsegmented(data)
+        self.unsegmented_list = utils.text_to_line(self.unsegmented, True)
 
         # Variable to store alphabet, utterance, and lexicon information
         self.utterances = [] # Stored Utterance objects
 
         if self.sup_boundary_method != 'none': # Boundary supervision
-            #if self.unsegmented != utils.unsegmented(self.sup_data):
-            #    raise ValueError('The supervision data must have the same content as the input text.')
             self.sup_boundaries = [] # Stored supervision boundaries
             sup_data_list = utils.text_to_line(data, True)
             utils.check_equality(len(self.unsegmented_list), len(sup_data_list))
@@ -69,17 +130,18 @@ class SupervisedState(State): # Information on the whole document
             if self.sup_boundary_method == 'sentence':
                 supervision_bool = True
                 if self.sup_boundary_parameter < 1: # Ratio case
-                    supervision_index = int(np.ceil(self.sup_boundary_parameter * len(self.unsegmented_list)))
+                    supervision_index = int(np.ceil(self.sup_boundary_parameter
+                                            * len(self.unsegmented_list)))
                     print('Supervision index:', supervision_index)
                 else: # Index case
                     supervision_index = self.sup_boundary_parameter
-            for i in range(len(self.unsegmented_list)): # rewrite with correct variable names
+            for i in range(len(self.unsegmented_list)):
                 if (self.sup_boundary_method == 'sentence') \
                     and (i >= supervision_index): # End of supervision
                     supervision_bool = False
                 unseg_line = self.unsegmented_list[i]
                 sup_line = sup_data_list[i]
-                utterance = SupervisedUtterance(
+                utterance = SupervisedPYPUtterance(
                     unseg_line, sup_line, self.p_boundary, random_gen_sup,
                     self.sup_boundary_method, self.sup_boundary_parameter,
                     supervision_bool)
@@ -88,7 +150,8 @@ class SupervisedState(State): # Information on the whole document
 
             # Count number of supervision boundaries
             #print(self.sup_boundaries)
-            flat_sup_boundaries = [boundary for boundaries in self.sup_boundaries for boundary in boundaries]
+            flat_sup_boundaries = [boundary for boundaries in self.sup_boundaries
+                                   for boundary in boundaries]
             print('Number of boundaries:', len(flat_sup_boundaries))
             counter_sup_boundaries = collections.Counter(flat_sup_boundaries)
             print('Counter of boundaries:', counter_sup_boundaries)
@@ -97,34 +160,26 @@ class SupervisedState(State): # Information on the whole document
 
         else: # Dictionary supervision (or no supervision) case
             for unseg_line in self.unsegmented_list: # rewrite with correct variable names
-                utterance = Utterance(unseg_line, self.p_boundary)
+                utterance = PYPUtterance(unseg_line, self.p_boundary)
                 self.utterances.append(utterance)
 
         self.n_utterances = len(self.utterances) # Number of utterances
 
-        # Lexicon object (Counter)
-        self.word_counts = Lexicon() # Word counter
-        init_segmented_list = utils.text_to_line(self.get_segmented(), True) # Remove empty string
-        self.word_counts.init_lexicon_text(init_segmented_list)
+        init_segmented_list = utils.text_to_line(self.get_segmented(), True)
 
-        #if self.sup_method == 'naive':
-        #    naive_dictionary = {word: self.sup_parameter for word, frequency in self.sup_data.items()}
-        #    self.word_counts.lexicon = self.word_counts.lexicon + collections.Counter(naive_dictionary)
-        #    print('Naive dictionary', self.word_counts.lexicon)
-        #elif self.sup_method == 'naive_freq':
-        #    naive_dictionary = {word: frequency * self.sup_parameter for word, frequency in self.sup_data.items()}
-        #    self.word_counts.lexicon = self.word_counts.lexicon + collections.Counter(naive_dictionary)
-        #    print('Naive freq dictionary', self.word_counts.lexicon)
+        # Restaurant object to count the number of tables (dict)
+        self.restaurant = Restaurant(self.alpha_1, self.discount, self.seed)
+        self.restaurant.init_tables(init_segmented_list)
+        #print('Restaurant:', self.restaurant.restaurant)
+        logging.debug(f'{self.restaurant.n_tables} tables initially')
 
-        if self.sup_method in ['naive', 'naive_freq']:
-            naive_dictionary = dict()
+        # TODO: change naive method for restaurants
+        if self.sup_method == 'naive':
             for word, frequency in self.sup_data.items():
-                if self.sup_method == 'naive':
-                    naive_dictionary[word] = self.sup_parameter
-                else: #self.sup_method == 'naive_freq':
-                    naive_dictionary[word] = frequency * self.sup_parameter
-            self.word_counts.lexicon = self.word_counts.lexicon + collections.Counter(naive_dictionary)
-            print(f'{self.sup_method.capitalize()} dictionary:', self.word_counts.lexicon)
+                self.restaurant.add_naive_word(word, self.sup_parameter)
+                #naive_dictionary[word] = self.sup_parameter
+            print(f'{self.sup_method.capitalize()} restaurant:', self.restaurant)
+
 
         # Alphabet (list of letters)
         self.alphabet = utils.delete_value_from_vector(list(set(self.unsegmented)), '\n')
@@ -132,10 +187,6 @@ class SupervisedState(State): # Information on the whole document
 
         # Phoneme probability (dictionary)
         self.phoneme_ps = dict()
-
-        if self.sup_method in ['initialise', 'init_bigram', 'init_trigram']:
-            self.word_length_ps = dict() # Exclusive to the dictionary initialise method
-
         #self.init_probs() # How to initialise the boundaries (here: random)
         self.init_phoneme_probs()
 
@@ -147,77 +198,18 @@ class SupervisedState(State): # Information on the whole document
         '''
         # Skip part to calculate the true distribution of characters
 
-        if self.sup_method == 'initialise':
+        if self.sup_method in ['init_bigram', 'mixture_bigram']:
             # Supervision with a dictionary
             logging.info('Phoneme distribution: dictionary supervision')
-
-            chosen_method = 'empirical'
-            logging.info(f' Chosen initialisation method: {chosen_method}')
-
-            words_in_dict_str = ''
-            word_length_dict = dict()
-            for word, frequency in self.sup_data.items():
-                words_in_dict_str += word #* frequency # For letter probabilities
-                word_length = len(word)
-                word_length_dict.setdefault(word_length, 0)
-                word_length_dict[word_length] += 1 # For length probabilities
-                #= word_length_dict.get(len(word), 0) + 1
-            print('words in dict_str:', words_in_dict_str[0:50])
-            total_frequence = sum(word_length_dict.values())
-            mean_token_length = sum([word_length * frequency
-                                     for word_length, frequency in word_length_dict.items()]
-                                ) / total_frequence
-            print('mean TL:', mean_token_length)
-            if (chosen_method == 'empirical'):
-                self.word_length_ps = {word_length: frequency / total_frequence
-                                       for word_length, frequency in word_length_dict.items()}
-            else:
-                self.word_length_ps = {i: poisson.pmf(i, mean_token_length, loc=1)
-                                       for i in range(max(word_length_dict.keys()))}
-            print('word_length:', self.word_length_ps, sum(self.word_length_ps.values()))
-
-            # TODO: make the different cases clearer (and more efficient)
-            letters_in_dict = collections.Counter(words_in_dict_str)
-            frequency_letters_dict = sum(letters_in_dict.values())
-
-            # TODO: deal with the case letters_in_dict[letter] == 0
-            #if chosen_method == 'length':
-            #    self.phoneme_ps = {letter: 1 / self.alphabet_size for letter in self.alphabet}
-            #else:
-            #    self.phoneme_ps = {letter: letters_in_dict[letter] / frequency_letters_dict
-            #                       for letter in self.alphabet}
-
-            for letter in self.alphabet:
-                if chosen_method == 'length':
-                    #self.phoneme_ps = {letter: 1 / self.alphabet_size}
-                    self.phoneme_ps[letter] = 1 / self.alphabet_size
-                else:
-                    self.phoneme_ps[letter] = letters_in_dict[letter] / frequency_letters_dict
-            #assert (abs(sum(self.phoneme_ps.values()) - 1.0) < 10^(-5)),
-            #        'The sum of the probabilities is not 1.'
-            print('Sum of probabilities: {0}'.format(sum(self.phoneme_ps.values())))
-
-        elif self.sup_method in ['init_bigram', 'init_trigram', 'mixture_bigram']:
-            # Supervision with a dictionary
-            logging.info('Phoneme distribution: dictionary supervision')
-            if self.sup_method in ['init_bigram', 'mixture_bigram']:
-                chosen_method = 'bigram'
-            elif self.sup_method == 'init_trigram':
-                chosen_method = 'trigram'
-            else: # chosen_method here: 'bigram' and 'trigram'
-                pass
+            chosen_method = 'bigram'
             logging.info(' Chosen initialisation method: {0:s}'.format(chosen_method))
 
             # Create the bigram distirbution dictionary
             ngrams_in_dict_list = [] # List of ngrams in the supervision data
             for word in self.sup_data.keys():
-                considered_word = f'<{word:s}>' #.format(word)
-                if chosen_method == 'bigram':
-                    word_ngram_list = [considered_word[i:(i + 2)] for i in range(len(considered_word) - 1)]
-                elif chosen_method == 'trigram':
-                    word_ngram_list = [considered_word[i:(i + 3)] for i in range(len(considered_word) - 2)]
-                else:
-                    pass
+                considered_word = f'<{word:s}>'
+                word_ngram_list = [considered_word[i:(i + 2)]
+                                   for i in range(len(considered_word) - 1)]
                 ngrams_in_dict_list += word_ngram_list
             ngrams_in_dict = collections.Counter(ngrams_in_dict_list)
 
@@ -225,29 +217,20 @@ class SupervisedState(State): # Information on the whole document
             letters_in_dict_list = [ngram[0] for ngram in ngrams_in_dict_list]
             letters_in_dict = collections.Counter(letters_in_dict_list)
             print('letters in dict', letters_in_dict)
-            #frequency_ngrams_dict = sum(ngrams_in_dict.values())
             all_letters = self.alphabet + ['<', '>']
             #print(all_letters)
-            if chosen_method == 'bigram':
-                list_all_ngram = [f'{first:s}{second:s}'
-                                  for first in all_letters for second in all_letters]
-            elif chosen_method == 'trigram':
-                list_all_ngram = [f'{first:s}{second:s}{third:s}'
-                                  for first in all_letters for second in all_letters
-                                  for third in all_letters]
-                                  #['{0:s}{1:s}{2:s}'.format(first, second, third)
-            else:
-                pass
+            list_all_ngram = [f'{first:s}{second:s}'
+                              for first in all_letters for second in all_letters]
+
             # Smoothing
             epsilon = 0.01 # Smoothing parameter
             smooth_denominator = epsilon * (len(all_letters))
             #print('Smooth denominator:', smooth_denominator)
             for ngram in list_all_ngram: #ngrams_in_dict.keys():
                 self.phoneme_ps[ngram] = (ngrams_in_dict[ngram] + epsilon) \
-                                         / (letters_in_dict[ngram[0]] + smooth_denominator) #frequency_ngrams_dict
+                                         / (letters_in_dict[ngram[0]] + smooth_denominator)
             #print('Ngram dictionary: {0}'.format(self.phoneme_ps))
 
-            #assert (abs(sum(self.phoneme_ps.values()) - 1.0) < 10^(-5)), 'The sum of the probabilities is not 1.'
             print('Sum of probabilities: {0}'.format(sum(self.phoneme_ps.values())))
 
         else:
@@ -263,18 +246,15 @@ class SupervisedState(State): # Information on the whole document
     def p_word(self, string):
         '''
         Computes the prior probability of a string of length n:
-        p_word = alpha_1 * p_boundary * (1 - p_boundary)^(n - 1)
+        p_word = p_boundary * (1 - p_boundary)^(n - 1)
                 * \prod_1^n phoneme(string_i)
+        No alpha_1 in this model's function.
         '''
         p = 1
         # Character model
         if self.sup_method in ['init_bigram', 'init_trigram', 'mixture_bigram']:
-            if self.sup_method in ['init_bigram', 'mixture_bigram']:
-                n_ngram = 2
-            elif self.sup_method == 'init_trigram':
-                n_ngram = 3
-            else:
-                pass
+            #if self.sup_method in ['init_bigram', 'mixture_bigram']:
+            n_ngram = 2
             considered_word = f'<{string:s}>'
             for i in range(len(considered_word) - n_ngram + 1):
                 ngram = considered_word[i:(i + n_ngram)]
@@ -298,15 +278,16 @@ class SupervisedState(State): # Information on the whole document
             #print('p after length:', p)
         else:
             pass
-        return p * self.alpha_1
+        return p
 
     # Sampling
     #def sample(self, temp):
 
     #def get_segmented(self):
 
+
 # Utterance in unigram case
-class SupervisedUtterance(Utterance):
+class SupervisedPYPUtterance(PYPUtterance):
     '''Information on one utterance of the document'''
     def __init__(self, sentence, sup_sentence, p_segment, random_gen,
                  sup_boundary_method='none', sup_boundary_parameter=0,
@@ -321,7 +302,6 @@ class SupervisedUtterance(Utterance):
         self.line_boundaries = []
         self.init_boundary()
 
-        #'true', 'random', 'sentence'
         self.sup_boundary_method = sup_boundary_method
         self.sup_boundary_parameter = sup_boundary_parameter
 
@@ -333,10 +313,9 @@ class SupervisedUtterance(Utterance):
 
         utils.check_equality(len(self.sentence), len(self.sup_boundaries))
 
+    #def init_boundary(self): # Random case only
 
-    #def init_boundary(self):
-
-    def init_sup_boundaries(self):
+    def init_sup_boundaries(self): # From SupervisedUtterance
         boundary_track = 0
         unseg_length = len(self.sentence)
         #random_state = random.getstate() # Avoid issues with random numbers
@@ -365,7 +344,6 @@ class SupervisedUtterance(Utterance):
                     self.sup_boundaries.append(0)
             boundary_track += 1
         self.sup_boundaries.append(1)
-        #random.setstate(random_state)
 
     #def numer_base(self, word, state):
 
@@ -378,39 +356,41 @@ class SupervisedUtterance(Utterance):
     #def sample(self, state, temp):
 
     def sample_one(self, i, state, temp):
-        lexicon = state.word_counts
+        #lexicon = state.word_counts
+        restaurant = state.restaurant #
         left = self.left_word(i)
         right = self.right_word(i)
         centre = self.centre_word(i)
+        ### boundaries is the boundary for the utterance only here
 
         if self.line_boundaries[i] == self.sup_boundaries[i]:
             return # No sampling if correct boundary status
         else:
             pass
 
-        ### boundaries is the boundary for the utterance only here
         if self.line_boundaries[i]: # Boundary at the i-th position ('yes' case)
             #print('yes case')
-            lexicon.remove_one(left)
-            lexicon.remove_one(right)
+            restaurant.remove_customer(left) #
+            restaurant.remove_customer(right) #
             #print(left, lexicon.lexicon[left], right, lexicon.lexicon[right])
         else: # No boundary at the i-th position ('no' case)
             #print('no case')
-            lexicon.remove_one(centre)
+            restaurant.remove_customer(centre) #
             #print(centre, lexicon.lexicon[centre])
 
         # Supervision
         if self.sup_boundaries[i] == 1:
             # No sampling if known boundary
             self.line_boundaries[i] = True
-            lexicon.add_one(left)
-            lexicon.add_one(right)
+            restaurant.add_customer(left)
+            restaurant.add_customer(right)
         elif self.sup_boundaries[i] == 0:
             # No sampling if known no boundary position
             self.line_boundaries[i] = False
-            lexicon.add_one(centre)
+            restaurant.add_customer(centre)
         else: # self.sup_boundaries[i] == -1: # Sampling case
-            denom = lexicon.n_tokens + state.alpha_1
+            denom = restaurant.n_customers + state.alpha_1 #lexicon.n_tokens
+            #denom = restaurant.n_customers + state.alpha_1
             #print('denom: ', denom)
             yes = state.p_cont() * self.numer_base(left, state) \
             * (self.numer_base(right, state) + utils.kdelta(left, right)) / (denom + 1)
@@ -424,18 +404,19 @@ class SupervisedUtterance(Utterance):
 
             # Annealing
             yes = yes ** temp
+            #print('yes temp: ', yes)
             no = no ** temp
             p_yes = yes / (yes + no)
-
-            if (random.random() < p_yes):
+            random_value = random.random()
+            if (random_value < p_yes):
                 #print('Boundary case')
                 self.line_boundaries[i] = True
-                lexicon.add_one(left)
-                lexicon.add_one(right)
+                restaurant.add_customer(left) #
+                restaurant.add_customer(right) #
             else:
                 #print('No boundary case')
                 self.line_boundaries[i] = False
-                lexicon.add_one(centre)
+                restaurant.add_customer(centre) #
 
         if self.sup_boundaries[i] >= 0:
             utils.check_equality(self.sup_boundaries[i], self.line_boundaries[i])

@@ -9,6 +9,7 @@ from tqdm import tqdm # Progress bar
 from pyseg.dpseg import State
 from pyseg.pypseg import PYPState
 from pyseg.supervised_dpseg import SupervisedState
+from pyseg.supervised_pypseg import SupervisedPYPState
 from pyseg.analysis import Statistics, evaluate
 from pyseg import utils
 
@@ -64,7 +65,7 @@ def parse_args():
     parser.add_argument('--supervision_boundary_parameter', default=0, type=float,
                         help='parameter value for boundary supervision')
 
-    parser.add_argument('--version', action='version', version='1.2.7')
+    parser.add_argument('--version', action='version', version='1.2.8')
 
     return parser.parse_args()
 
@@ -90,24 +91,43 @@ def main():
 
     # Initialisation of the model state
     if model_name == 'pypseg':
-        main_state = PYPState(data, discount = args.discount,
-                           alpha_1 = args.alpha_1, p_boundary = args.p_boundary,
-                           seed = rnd_seed)
-    else: # Default model: dpseg
-        if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'): # If supervision
+        # If supervision
+        if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'):
             if args.supervision_method != 'none':
                 with open(args.supervision_file, 'rb') as d:
                     supervision_data = pickle.load(d)
             else:
                 supervision_data = 'none'
                 #open(args.supervision_file, 'r', encoding = 'utf8').read()
-            main_state = SupervisedState(data, alpha_1 = args.alpha_1,
-                         p_boundary = args.p_boundary, seed = rnd_seed,
-                         supervision_data = supervision_data,
-                         supervision_method = args.supervision_method,
-                         supervision_parameter = args.supervision_parameter,
-                         supervision_boundary = args.supervision_boundary,
-                         supervision_boundary_parameter = args.supervision_boundary_parameter)
+            main_state = SupervisedPYPState(
+                data, discount = args.discount, alpha_1 = args.alpha_1,
+                p_boundary = args.p_boundary, seed = rnd_seed,
+                supervision_data = supervision_data,
+                supervision_method = args.supervision_method,
+                supervision_parameter = args.supervision_parameter,
+                supervision_boundary = args.supervision_boundary,
+                supervision_boundary_parameter = args.supervision_boundary_parameter)
+        else:
+            main_state = PYPState(data, discount = args.discount,
+                               alpha_1 = args.alpha_1,
+                               p_boundary = args.p_boundary, seed = rnd_seed)
+    else: # Default model: dpseg
+        # If supervision
+        if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'):
+            if args.supervision_method != 'none':
+                with open(args.supervision_file, 'rb') as d:
+                    supervision_data = pickle.load(d)
+            else:
+                supervision_data = 'none'
+                #open(args.supervision_file, 'r', encoding = 'utf8').read()
+            main_state = SupervisedState(
+                data, alpha_1 = args.alpha_1,
+                p_boundary = args.p_boundary, seed = rnd_seed,
+                supervision_data = supervision_data,
+                supervision_method = args.supervision_method,
+                supervision_parameter = args.supervision_parameter,
+                supervision_boundary = args.supervision_boundary,
+                supervision_boundary_parameter = args.supervision_boundary_parameter)
         else:
             main_state = State(data, alpha_1 = args.alpha_1,
                          p_boundary = args.p_boundary)
@@ -143,10 +163,13 @@ def main():
         if args.supervision_method in ['naive', 'naive_freq']:
             pass
         elif model_name == 'pypseg':
-            utils.check_equality(main_state.restaurant.n_customers, sum(main_state.restaurant.customers.values()))
-            utils.check_equality(main_state.restaurant.n_tables, sum(main_state.restaurant.tables.values()))
+            utils.check_equality(main_state.restaurant.n_customers,
+                                 sum(main_state.restaurant.customers.values()))
+            utils.check_equality(main_state.restaurant.n_tables,
+                                 sum(main_state.restaurant.tables.values()))
         else:
-            utils.check_equality(main_state.word_counts.n_types, len(main_state.word_counts.lexicon))
+            utils.check_equality(main_state.word_counts.n_types,
+                                 len(main_state.word_counts.lexicon))
             utils.check_equality(main_state.word_counts.n_tokens,
                                  sum(main_state.word_counts.lexicon.values()))
 
@@ -157,9 +180,16 @@ def main():
         #                          main_state.word_counts.n_tokens)
         #utils.check_equality((sum(main_state.restaurant.customers.values())),
         #                      main_state.word_counts.n_tokens)
-        #utils.check_equality(main_state.restaurant.n_customers, main_state.word_counts.n_tokens)
+        #utils.check_equality(main_state.restaurant.n_customers,
+        #                     main_state.word_counts.n_tokens)
         logging.debug('{} tables'.format(main_state.restaurant.n_tables))
         #print('Restaurant', main_state.restaurant.restaurant)
+
+    if args.supervision_method in ['naive', 'naive_freq']:
+        if model_name == 'pypseg':
+            print(main_state.restaurant.restaurant)
+        else:
+            print(main_state.word_counts.lexicon)
 
     segmented_text = main_state.get_segmented()
 
@@ -181,7 +211,12 @@ def main():
         logging.info('Without the given sentences:')
         split_gold = utils.text_to_line(data, True)
         split_seg = utils.text_to_line(segmented_text, True)
-        supervision_index = int(args.supervision_boundary_parameter)
+        if args.supervision_boundary_parameter < 1: # Ratio case
+            supervision_index = int(np.ceil(args.supervision_boundary_parameter * len(split_seg)))
+            print('Supervision index:', supervision_index)
+        else: # Index case
+            supervision_index = int(args.supervision_boundary_parameter)
+        #supervision_index = int(args.supervision_boundary_parameter)
         remain_gold = '\n'.join(split_gold[supervision_index:]) + '\n'
         remain_seg = '\n'.join(split_seg[supervision_index:]) + '\n'
         remain_stats = Statistics(remain_seg)

@@ -26,21 +26,22 @@ def check_probability(prob):
     if ((prob >= 0) and (prob <= 1)):
         pass
     else:
-        raise ValueError('Value must be between 0 and 1 to be a probability.')
+        raise ValueError(f'{prob} must be between 0 and 1 to be a probability.')
 
 def check_value_between(value, lower_b, upper_b):
     '''Check that the given value is above a certain value and below another.'''
     if (value >= lower_b) and (value < upper_b):
         pass
     else:
-        raise ValueError('Value {0} must be between {1} and {2}.'.format(value, lower_b, upper_b))
+        raise ValueError(f'{value} must be between {lower_b} and {upper_b}.')
 
 def check_equality(value_left, value_right):
     '''Check that both given values are equal.'''
     if (value_left == value_right):
         pass
     else:
-        raise ValueError('Both values must be equal; currently {0} and {1}.'.format(value_left, value_right))
+        raise ValueError('Both values must be equal; '
+                         f'currently {value_left} and {value_right}.') 
 
 
 # Other utility functions
@@ -60,7 +61,7 @@ def indicator(element, subset):
 
 def delete_value_from_vector(vector, value):
     '''Delete a given value from a vector.
-    
+
     To be used only when the value is in the vector.
     '''
     if value in vector:

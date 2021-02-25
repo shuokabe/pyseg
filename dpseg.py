@@ -11,13 +11,17 @@ logging.basicConfig(level = logging.DEBUG, format = '[%(asctime)s] %(message)s',
 
 
 class Lexicon: # Improved dictionary using a Counter
-    '''
-    Keeps track of the lexicon in the dpseg model, using a Counter object.
+    '''Keep track of the lexicon in the dpseg model, using a Counter object.
 
-    lexicon (Counter): improved dictionary where each word is associated to
-        its frequency.
-    n_types (int): number of types in the lexicon.
-    n_tokens (int): number of tokens in the lexicon.
+    Attributes
+    ----------
+    lexicon : Counter
+        Improved dictionary where each word is associated to its frequency.
+        Format: {word_label: word frequency}
+    n_types : integer
+        Total number of types in the lexicon.
+    n_tokens : int):
+        Total number of tokens in the lexicon.
 
     '''
     def __init__(self):
@@ -28,8 +32,7 @@ class Lexicon: # Improved dictionary using a Counter
         self.n_tokens = 0
 
     def update_lex_size(self):
-        '''
-        Updates the two parameters storing the number of tokens and of types.
+        '''Updates the two parameters storing the number of tokens and of types.
 
         To use after any modification of the lexicon.
         '''
@@ -67,9 +70,7 @@ class Lexicon: # Improved dictionary using a Counter
         self.n_tokens += -1 # Remove one token
 
     def init_lexicon_text(self, text):
-        '''
-        Initialises the lexicon (Counter) with the text.
-        '''
+        '''Initialises the lexicon (Counter) with the text.'''
         counter = collections.Counter()
         for line in text:
             split_line = utils.line_to_word(line)
@@ -88,7 +89,7 @@ class State: # Information on the whole document
 
         self.beta = 2 # Hyperparameter?
 
-        logging.info(f' alpha_1: {self.alpha_1:d}, p_boundary: {self.p_boundary:.1f}') #.format(self.alpha_1, self.p_boundary))
+        logging.info(f' alpha_1: {self.alpha_1:d}, p_boundary: {self.p_boundary:.1f}') 
 
         # Data and Utterance object
         self.unsegmented = utils.unsegmented(data)

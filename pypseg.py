@@ -64,7 +64,7 @@ class Restaurant:
         # Parameters of the model
         self.alpha_1 = alpha_1
         self.discount = discount
-        #self.seed = seed
+        
         self.random_gen = random.Random(seed) # Avoid issues with main random numbers
 
     def add_customer(self, word, random_value=None):
@@ -73,14 +73,16 @@ class Restaurant:
         if word in self.restaurant.keys(): # Add the customer to a table (possibly new)
             n_customers = self.customers[word]
             #random_state = random.getstate() # Avoid issues with random numbers
-            if random_value is not None:
-                pass
-            else:
-                random_value = self.random_gen.random() #random.random()
+            #if random_value is not None:
+            #    pass
+            #else:
+            #   random_value = self.random_gen.random() #random.random()
+            random_value = self.random_gen.random() #random.random()
             new_customer = random_value * (n_customers + self.alpha_1)
             #random.setstate(random_state)
             utils.check_equality(self.tables[word], len(self.restaurant[word]))
-            if (new_customer > (n_customers - (self.discount * self.tables[word]))): # Open a new table
+            if (new_customer > (n_customers - (self.discount * self.tables[word]))):
+                # Open a new table
                 self.restaurant[word].append(1)
                 self.tables[word] += 1
                 self.n_tables += 1
@@ -94,7 +96,7 @@ class Restaurant:
                     else:
                         pass
             self.customers[word] += 1
-            self.n_customers += 1
+            #self.n_customers += 1
             #utils.check_equality(self.customers[word], n_customers + 1)
 
         else: # Open a new table for a new word
@@ -102,7 +104,8 @@ class Restaurant:
             self.tables[word] = 1
             self.n_tables += 1
             self.customers[word] = 1
-            self.n_customers += 1
+
+        self.n_customers += 1
 
     def remove_customer(self, word):
         '''Remove a customer (word) from a table and close it if necessary.'''
@@ -184,7 +187,7 @@ class PYPState(State): # Information on the whole document
         init_segmented_list = utils.text_to_line(self.get_segmented(), True) # Remove empty string
         #self.word_counts.init_lexicon_text(init_segmented_list)
 
-        # Tables object to count the number of tables (dict)
+        # Restaurant object to count the number of tables (dict)
         self.restaurant = Restaurant(self.alpha_1, self.discount, self.seed)
         #random_state = random.getstate() # Avoid issues with random numbers
         self.restaurant.init_tables(init_segmented_list)
@@ -254,9 +257,11 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
             base = 0
         else: # The word is in the lexicon/restaurant
             #base = state.word_counts.lexicon[word] - (state.discount * state.restaurant.tables[word])
-            base = state.restaurant.customers[word] - (state.discount * state.restaurant.tables[word])
+            base = state.restaurant.customers[word] \
+                   - (state.discount * state.restaurant.tables[word])
         #base += ((state.discount * state.word_counts.n_types) + state.alpha_1) * state.p_word(word)
-        base += ((state.discount * state.restaurant.n_tables) + state.alpha_1) * state.p_word(word)
+        base += ((state.discount * state.restaurant.n_tables) + state.alpha_1) \
+                * state.p_word(word)
         #print('numer_base: ', base)
         #print('new element: ', (state.discount * state.word_counts.n_types) * state.p_word(word))
         return base
@@ -315,14 +320,14 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
             self.line_boundaries[i] = True
             #lexicon.add_one(left)
             #lexicon.add_one(right)
-            restaurant.add_customer(left, random_value) #
-            restaurant.add_customer(right, random_value) #
+            restaurant.add_customer(left) #, random_value) #
+            restaurant.add_customer(right) #, random_value) #
             #utils.check_equality(restaurant.customers[left], lexicon.lexicon[left])
         else:
             #print('No boundary case')
             self.line_boundaries[i] = False
             #lexicon.add_one(centre)
-            restaurant.add_customer(centre, random_value) #
+            restaurant.add_customer(centre) #, random_value) #
             #utils.check_equality(restaurant.customers[centre], lexicon.lexicon[centre])
 
         #utils.check_equality(restaurant.n_customers, lexicon.n_tokens)
