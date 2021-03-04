@@ -209,8 +209,8 @@ def main():
     # For boundary supervision with segmented sentences
     if args.supervision_boundary == 'sentence':
         logging.info('Without the given sentences:')
-        split_gold = utils.text_to_line(data, True)
-        split_seg = utils.text_to_line(segmented_text, True)
+        split_gold = utils.text_to_line(data)
+        split_seg = utils.text_to_line(segmented_text) 
         if args.supervision_boundary_parameter < 1: # Ratio case
             supervision_index = int(np.ceil(args.supervision_boundary_parameter * len(split_seg)))
             print('Supervision index:', supervision_index)

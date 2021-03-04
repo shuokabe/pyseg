@@ -6,14 +6,39 @@ from pyseg import utils
 
 
 class Statistics:
+    '''Statistics class containing statistics about the given text.
+
+    Parameters
+    ----------
+    text : string
+        Already segmented text (gold and model output)
+
+    Attributes
+    ----------
+    split_text : list of strings [string]
+        List containing all the sentences of the given text.
+    split_utterances : list of list of strings [[string]]
+        List containing the list of each sentence's (list) words.
+    lexicon : Counter()
+        List of the words in the text with their frequencies.
+    stats : dictionary {statistics: value}
+        Dictionary with the five statistics given by the class:
+        - N_utterances: number of utterances
+        - N_tokens: number of tokens
+        - avg_token_length: average length of tokens (WL)
+        - N_types: number of types
+        - avg_type_length: average length of word types (TL)
+
+    '''
     def __init__(self, text):
         # Text is an already segmented text (string)
-        self.split_text = utils.text_to_line(text, True) # Remove empty string
+        self.split_text = utils.text_to_line(text)
         #self.split_text = utils.delete_value_from_vector(self.split_text, '')
-        self.split_utterances = [utils.line_to_word(line) for line in self.split_text]
+        self.split_utterances = [utils.line_to_word(line)
+                                 for line in self.split_text]
 
         self.lexicon = self.lexicon_text()
-        self.stats = self.compute_stats() #dict()
+        self.stats = self.compute_stats()
 
     #def __str__(self):
     #    str_lexicon = ''
@@ -26,11 +51,12 @@ class Statistics:
         list_word = []
         for split_line in self.split_utterances:
             list_word += split_line
-        return Counter(list_word) 
+        return Counter(list_word)
 
     def average_token_length(self):
         '''Return the average length of tokens.'''
-        tl_sum = sum([sum([len(token) for token in utt]) for utt in self.split_utterances])
+        tl_sum = sum([sum([len(token) for token in utt])
+                      for utt in self.split_utterances])
         n_tokens = sum([len(utt) for utt in self.split_utterances])
         return tl_sum / n_tokens
 
@@ -45,7 +71,7 @@ class Statistics:
 
         stats['N_utterances'] = len(self.split_text)
 
-        # Length of utterances in number of words
+        # Length of utterances in number of words (number of words per sentence)
         tokens_len = [len(utt) for utt in self.split_utterances]
         # Number of tokens
         stats['N_tokens'] = sum(tokens_len)
@@ -68,7 +94,20 @@ def f_measure(p, r):
     return 2 * p * r / (p + r)
 
 def get_boundaries(text_list):
-    # The last boundary is always True, so not considered here
+    '''Gets the boundaries (list of 0 and 1) from a (split) text.
+
+    The last boundary is always True, so not considered here.
+
+    Parameters
+    ----------
+    text_list : list of string [string]
+        Text split into sentences (list of sentences)
+
+    Returns
+    -------
+    boundaries : list of list of integers [[integer]]
+        List containing boundary statuses (0 or 1) for each sentence (list).
+    '''
     boundaries = []
     for line in text_list:
         line_boundaries = []
@@ -81,21 +120,21 @@ def get_boundaries(text_list):
             else:
                 line_boundaries.append(False)
             boundary_track += 1
-        boundaries += [line_boundaries]
+        boundaries.append(line_boundaries)
     return boundaries
 
-def boundaries_eval(gold_boundaries, segmented_boundaries):
-    boundary_counts = Counter()
-    for i in range(len(gold_boundaries)):
-        boundary_counts += Counter(zip(gold_boundaries[i], segmented_boundaries[i]))
-    print(boundary_counts)
+#def boundaries_eval(gold_boundaries, segmented_boundaries):
+#    boundary_counts = Counter()
+#    for i in range(len(gold_boundaries)):
+#        boundary_counts += Counter(zip(gold_boundaries[i], segmented_boundaries[i]))
+#    print(boundary_counts)
 
-    tp = boundary_counts[(True, True)]
-    b_precision = tp / (tp + boundary_counts[(False, True)])
-    b_recall = tp / (tp + boundary_counts[(True, False)])
-    b_f_score = f_measure(b_precision, b_recall)
+#    tp = boundary_counts[(True, True)]
+#    b_precision = tp / (tp + boundary_counts[(False, True)])
+#    b_recall = tp / (tp + boundary_counts[(True, False)])
+#    b_f_score = f_measure(b_precision, b_recall)
 
-    return b_precision, b_recall, b_f_score
+#    return b_precision, b_recall, b_f_score
 
 def token_count_utt(gold_boundary, segmented_boundary):
     # Count the number of exactly matching tokens (at the boundary level)
@@ -115,7 +154,7 @@ def token_count_utt(gold_boundary, segmented_boundary):
         # Boundaries don't match
         elif (gold_bool and not seg_bool) or (not gold_bool and seg_bool):
             token_match = False
-        else: # Boundaries match: currently in a token
+        else: # Non-boundaries match: currently in a token
             continue
 
     if token_match: # Last token
@@ -124,17 +163,29 @@ def token_count_utt(gold_boundary, segmented_boundary):
 
 def evaluate(reference, segmented):
     '''
-    PRF metrics (precision, recall, and F-score)
-    ##### to complete
+    Compute the PRF metrics (precision, recall, and F-score) at three levels.
 
     Both text inputs are raw strings.
+    PRF metrics at boundary (B), token (W), and type level (L).
+
+    Parameters
+    ----------
+    reference : string
+        Raw (i.e. not split) reference text
+    segmented : string
+        Raw text to compare (e.g. output from a segmentation model)
+
+    Returns
+    -------
+    eval : dictionary {metrics: value}
+        Dictionary containing all three metrics for the three evaluation levels
     '''
     # Statistics
     reference_stats = Statistics(reference)
     segmented_stats = Statistics(segmented)
 
-    reference_list = utils.text_to_line(reference, True) # Remove empty string
-    segmented_list = utils.text_to_line(segmented, True) # Remove empty string
+    reference_list = utils.text_to_line(reference)
+    segmented_list = utils.text_to_line(segmented) 
     utils.check_equality(len(reference_list), len(segmented_list))
 
     ref_boundaries = get_boundaries(reference_list)

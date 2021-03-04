@@ -64,28 +64,20 @@ class Restaurant:
         # Parameters of the model
         self.alpha_1 = alpha_1
         self.discount = discount
-        
+
         self.random_gen = random.Random(seed) # Avoid issues with main random numbers
 
-    def add_customer(self, word, random_value=None):
+    def add_customer(self, word):
         '''Assign a customer (word) to a table in the restaurant.'''
         utils.check_equality(len(self.customers.keys()), len(self.restaurant.keys()))
         if word in self.restaurant.keys(): # Add the customer to a table (possibly new)
             n_customers = self.customers[word]
-            #random_state = random.getstate() # Avoid issues with random numbers
-            #if random_value is not None:
-            #    pass
-            #else:
-            #   random_value = self.random_gen.random() #random.random()
-            random_value = self.random_gen.random() #random.random()
+            random_value = self.random_gen.random()
             new_customer = random_value * (n_customers + self.alpha_1)
-            #random.setstate(random_state)
             utils.check_equality(self.tables[word], len(self.restaurant[word]))
             if (new_customer > (n_customers - (self.discount * self.tables[word]))):
                 # Open a new table
-                self.restaurant[word].append(1)
-                self.tables[word] += 1
-                self.n_tables += 1
+                self.open_table(word, False)
             else: # Add the new customer in an existing table
                 cumulative_sum = 0
                 for k in range(self.tables[word]):
@@ -96,36 +88,29 @@ class Restaurant:
                     else:
                         pass
             self.customers[word] += 1
-            #self.n_customers += 1
             #utils.check_equality(self.customers[word], n_customers + 1)
 
         else: # Open a new table for a new word
-            self.restaurant[word] = [1]
-            self.tables[word] = 1
-            self.n_tables += 1
             self.customers[word] = 1
+            self.open_table(word, True)
 
         self.n_customers += 1
 
     def remove_customer(self, word):
         '''Remove a customer (word) from a table and close it if necessary.'''
-        n_word_table = len(self.restaurant.get(word, []))
-        if (n_word_table == 0):
+        #n_table_word = len(self.restaurant.get(word, []))
+        n_table_word = self.tables.get(word, [])
+        if (n_table_word == 0):
             raise KeyError('There is no table with the word label %s.' % word)
-        elif (n_word_table == 1): # Only one table
+        elif (n_table_word == 1): # Only one table
             self.restaurant[word][0] += -1
             self.customers[word] += -1
-            self.n_customers += -1
-            if (self.restaurant[word] == [0]): # Close the table
-                del self.restaurant[word]
+            if (self.restaurant[word][0] == 0): # Close the last table
                 del self.customers[word]
-                del self.tables[word]
-                self.n_tables += -1
+                self.close_table(word, 0, True)
         else: # More than one table
             n_customers = self.customers[word]
-            #random_state = random.getstate() # Avoid issues with random numbers
-            new_customer = self.random_gen.random() * n_customers #random.random() * n_customers
-            #random.setstate(random_state)
+            new_customer = self.random_gen.random() * n_customers
             cumulative_sum = 0
             utils.check_equality(self.tables[word], len(self.restaurant[word]))
             for k in range(self.tables[word]):
@@ -133,15 +118,34 @@ class Restaurant:
                 if new_customer <= cumulative_sum: # Add the customer to that table
                     self.restaurant[word][k] += -1
                     self.customers[word] += -1
-                    self.n_customers += -1
                     if (self.restaurant[word][k] == 0): # Close the table
-                        del self.restaurant[word][k]
-                        self.tables[word] += -1
-                        self.n_tables += -1
+                        self.close_table(word, k, False)
                     break
                 else:
                     pass
-            #utils.check_equality(self.customers.get(word, n_customers - 1), n_customers - 1)
+            #utils.check_equality(self.customers.get(word, n_customers - 1),
+            #n_customers - 1)
+        self.n_customers += -1
+
+    def open_table(self, word, new_word=False):
+        '''Open a table with the label word, the first table if word is new.'''
+        if new_word: # If the word is new
+            self.restaurant[word] = [1]
+            self.tables[word] = 1
+        else:
+            self.restaurant[word].append(1)
+            self.tables[word] += 1
+        self.n_tables += 1
+
+    def close_table(self, word, k, last_table=False):
+        '''Close the table k with the label word and delete it, if last table.'''
+        if last_table: # If last table with the label word
+            del self.restaurant[word]
+            del self.tables[word]
+        else:
+            del self.restaurant[word][k]
+            self.tables[word] += -1
+        self.n_tables += -1
 
     def init_tables(self, text):
         '''Initialise the tables in the restaurant with the given text.'''
@@ -169,8 +173,8 @@ class PYPState(State): # Information on the whole document
         self.seed = seed
 
         # Data and Utterance object
-        self.unsegmented = utils.unsegmented(data) #datafile.unsegmented(data)
-        self.unsegmented_list = utils.text_to_line(self.unsegmented, True) # Remove empty string
+        self.unsegmented = utils.unsegmented(data)
+        self.unsegmented_list = utils.text_to_line(self.unsegmented)
 
         # Variable to store alphabet, utterance, and lexicon information
         self.utterances = [] # Stored Utterance objects
@@ -184,7 +188,7 @@ class PYPState(State): # Information on the whole document
 
         # Lexicon object (Counter)
         #self.word_counts = Lexicon() # Word counter
-        init_segmented_list = utils.text_to_line(self.get_segmented(), True) # Remove empty string
+        init_segmented_list = utils.text_to_line(self.get_segmented())
         #self.word_counts.init_lexicon_text(init_segmented_list)
 
         # Restaurant object to count the number of tables (dict)
@@ -196,7 +200,8 @@ class PYPState(State): # Information on the whole document
         logging.debug(f'{self.restaurant.n_tables} tables initially')
         #utils.check_value_between(self.restaurant.n_tables, self.word_counts.n_types,
                                    #self.word_counts.n_tokens)
-        #utils.check_equality((sum(self.restaurant.customers.values())), self.word_counts.n_tokens)
+        #utils.check_equality((sum(self.restaurant.customers.values())),
+        #self.word_counts.n_tokens)
         #utils.check_equality(self.restaurant.n_customers, self.word_counts.n_tokens)
 
         # Alphabet (list of letters)
@@ -256,14 +261,17 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
         if word not in state.restaurant.customers: # If the word is not in the lexicon
             base = 0
         else: # The word is in the lexicon/restaurant
-            #base = state.word_counts.lexicon[word] - (state.discount * state.restaurant.tables[word])
+            #base = state.word_counts.lexicon[word]
+            #- (state.discount * state.restaurant.tables[word])
             base = state.restaurant.customers[word] \
                    - (state.discount * state.restaurant.tables[word])
-        #base += ((state.discount * state.word_counts.n_types) + state.alpha_1) * state.p_word(word)
+        #base += ((state.discount * state.word_counts.n_types) + state.alpha_1)
+        #* state.p_word(word)
         base += ((state.discount * state.restaurant.n_tables) + state.alpha_1) \
                 * state.p_word(word)
         #print('numer_base: ', base)
-        #print('new element: ', (state.discount * state.word_counts.n_types) * state.p_word(word))
+        #print('new element: ',
+            #(state.discount * state.word_counts.n_types) * state.p_word(word))
         return base
 
     #def left_word(self, i):
@@ -320,14 +328,14 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
             self.line_boundaries[i] = True
             #lexicon.add_one(left)
             #lexicon.add_one(right)
-            restaurant.add_customer(left) #, random_value) #
-            restaurant.add_customer(right) #, random_value) #
+            restaurant.add_customer(left) #
+            restaurant.add_customer(right) #
             #utils.check_equality(restaurant.customers[left], lexicon.lexicon[left])
         else:
             #print('No boundary case')
             self.line_boundaries[i] = False
             #lexicon.add_one(centre)
-            restaurant.add_customer(centre) #, random_value) #
+            restaurant.add_customer(centre) #
             #utils.check_equality(restaurant.customers[centre], lexicon.lexicon[centre])
 
         #utils.check_equality(restaurant.n_customers, lexicon.n_tokens)

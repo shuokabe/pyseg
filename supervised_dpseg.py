@@ -53,7 +53,7 @@ class SupervisedState(State): # Information on the whole document
 
         # Data and Utterance object
         self.unsegmented = utils.unsegmented(data)
-        self.unsegmented_list = utils.text_to_line(self.unsegmented, True) # Remove empty string
+        self.unsegmented_list = utils.text_to_line(self.unsegmented)
 
         # Variable to store alphabet, utterance, and lexicon information
         self.utterances = [] # Stored Utterance objects
@@ -62,7 +62,7 @@ class SupervisedState(State): # Information on the whole document
             #if self.unsegmented != utils.unsegmented(self.sup_data):
             #    raise ValueError('The supervision data must have the same content as the input text.')
             self.sup_boundaries = [] # Stored supervision boundaries
-            sup_data_list = utils.text_to_line(data, True)
+            sup_data_list = utils.text_to_line(data)
             utils.check_equality(len(self.unsegmented_list), len(sup_data_list))
 
             supervision_bool = False
@@ -104,17 +104,8 @@ class SupervisedState(State): # Information on the whole document
 
         # Lexicon object (Counter)
         self.word_counts = Lexicon() # Word counter
-        init_segmented_list = utils.text_to_line(self.get_segmented(), True) # Remove empty string
+        init_segmented_list = utils.text_to_line(self.get_segmented())
         self.word_counts.init_lexicon_text(init_segmented_list)
-
-        #if self.sup_method == 'naive':
-        #    naive_dictionary = {word: self.sup_parameter for word, frequency in self.sup_data.items()}
-        #    self.word_counts.lexicon = self.word_counts.lexicon + collections.Counter(naive_dictionary)
-        #    print('Naive dictionary', self.word_counts.lexicon)
-        #elif self.sup_method == 'naive_freq':
-        #    naive_dictionary = {word: frequency * self.sup_parameter for word, frequency in self.sup_data.items()}
-        #    self.word_counts.lexicon = self.word_counts.lexicon + collections.Counter(naive_dictionary)
-        #    print('Naive freq dictionary', self.word_counts.lexicon)
 
         if self.sup_method in ['naive', 'naive_freq']:
             naive_dictionary = dict()
@@ -244,10 +235,9 @@ class SupervisedState(State): # Information on the whole document
             #print('Smooth denominator:', smooth_denominator)
             for ngram in list_all_ngram: #ngrams_in_dict.keys():
                 self.phoneme_ps[ngram] = (ngrams_in_dict[ngram] + epsilon) \
-                                         / (letters_in_dict[ngram[0]] + smooth_denominator) #frequency_ngrams_dict
+                                         / (letters_in_dict[ngram[0]] + smooth_denominator)
             #print('Ngram dictionary: {0}'.format(self.phoneme_ps))
 
-            #assert (abs(sum(self.phoneme_ps.values()) - 1.0) < 10^(-5)), 'The sum of the probabilities is not 1.'
             print('Sum of probabilities: {0}'.format(sum(self.phoneme_ps.values())))
 
         else:

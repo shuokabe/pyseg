@@ -89,11 +89,12 @@ class State: # Information on the whole document
 
         self.beta = 2 # Hyperparameter?
 
-        logging.info(f' alpha_1: {self.alpha_1:d}, p_boundary: {self.p_boundary:.1f}') 
+        logging.info(f' alpha_1: {self.alpha_1:d}, p_boundary: {self.p_boundary:.1f}')
 
         # Data and Utterance object
         self.unsegmented = utils.unsegmented(data)
-        self.unsegmented_list = utils.text_to_line(self.unsegmented, True) # Remove empty string
+        # Remove empty string
+        self.unsegmented_list = utils.text_to_line(self.unsegmented) 
 
         # Variable to store alphabet, utterance, and lexicon information
         self.utterances = [] # Stored Utterance objects
@@ -107,7 +108,8 @@ class State: # Information on the whole document
 
         # Lexicon object (Counter)
         self.word_counts = Lexicon() # Word counter
-        init_segmented_list = utils.text_to_line(self.get_segmented(), True) # Remove empty string
+        # Remove empty string
+        init_segmented_list = utils.text_to_line(self.get_segmented())
         self.word_counts.init_lexicon_text(init_segmented_list)
 
         # Alphabet (list of letters)
@@ -160,8 +162,8 @@ class State: # Information on the whole document
         p = 1
         for letter in string:
             p = p * self.phoneme_ps[letter]
-        p = p * self.alpha_1 * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
-        return p
+        p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
+        return p * self.alpha_1
 
     # Sampling
     def sample(self, temp):
@@ -174,8 +176,7 @@ class State: # Information on the whole document
             utterance.sample(self, temp) # model_type = 1
 
     def get_segmented(self):
-        '''
-        Generates the segmented text corresponding to the current state of the boundaries.
+        '''Generate the segmented text with the current state of the boundaries.
 
         ###
         '''

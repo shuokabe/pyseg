@@ -7,10 +7,10 @@ def unsegmented(text): # Raw string
 
 
 # Splitting functions
-def text_to_line(raw_text, remove_empty=True):
+def text_to_line(raw_text):
     r'''Split a raw text into a list of sentences (string) according to '\n'.'''
     split_text = re.split('\n', raw_text)
-    if remove_empty: # To remove empty lines
+    if '' in split_text: # To remove empty lines
         return delete_value_from_vector(split_text, '')
     else:
         return split_text
@@ -41,7 +41,7 @@ def check_equality(value_left, value_right):
         pass
     else:
         raise ValueError('Both values must be equal; '
-                         f'currently {value_left} and {value_right}.') 
+                         f'currently {value_left} and {value_right}.')
 
 
 # Other utility functions
