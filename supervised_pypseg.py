@@ -38,13 +38,16 @@ class Restaurant(Restaurant):
         '''
         #utils.check_equality(len(self.customers.keys()), len(self.restaurant.keys()))
         if word in self.restaurant.keys(): # Add the customer to a table (possibly new)
-            n_customers = self.customers.get(word, 0)
-            if n_customers >= 1: # The word is currently in the text
+            n_customers_w = self.customers.get(word, 0)
+            if n_customers_w >= 1: # The word is currently in the text
                 #n_customers = self.customers[word]
+                n_tables_w = self.tables[word]
                 random_value = self.random_gen.random()
-                new_customer = random_value * (n_customers + self.alpha_1)
+                #new_customer = random_value * (n_customers_w + self.alpha_1)
+                new_customer = random_value * (n_customers_w + self.alpha_1 \
+                   + self.discount * (self.n_tables - n_tables_w))
                 utils.check_equality(self.tables[word], len(self.restaurant[word]))
-                if (new_customer > (n_customers - (self.discount * self.tables[word]))):
+                if (new_customer > (n_customers_w - (self.discount * self.tables[word]))):
                     # Open a new table
                     self.open_table(word, False)
                 else: # Add the new customer in an existing table
@@ -172,10 +175,16 @@ class SupervisedPYPState(PYPState): # Information on the whole document
                     supervision_bool = False
                 unseg_line = self.unsegmented_list[i]
                 sup_line = sup_data_list[i]
-                utterance = SupervisedPYPUtterance(
-                    unseg_line, sup_line, self.p_boundary, random_gen_sup,
-                    self.sup_boundary_method, self.sup_boundary_parameter,
-                    supervision_bool)
+                if self.sup_boundary_method == 'word':
+                    utterance = SupervisedPYPUtterance(
+                        unseg_line, sup_line, self.p_boundary, random_gen_sup,
+                        self.sup_boundary_method, self.sup_boundary_parameter,
+                        sup_data = self.sup_data)
+                else:
+                    utterance = SupervisedPYPUtterance(
+                        unseg_line, sup_line, self.p_boundary, random_gen_sup,
+                        self.sup_boundary_method, self.sup_boundary_parameter,
+                        supervision_bool)
                 self.utterances.append(utterance)
                 self.sup_boundaries.append(utterance.sup_boundaries)
 
@@ -190,13 +199,13 @@ class SupervisedPYPState(PYPState): # Information on the whole document
                    counter_sup_boundaries[0]) / len(flat_sup_boundaries))
 
         else: # Dictionary supervision (or no supervision) case
-            for unseg_line in self.unsegmented_list: # rewrite with correct variable names
+            for unseg_line in self.unsegmented_list:
                 utterance = PYPUtterance(unseg_line, self.p_boundary)
                 self.utterances.append(utterance)
 
         self.n_utterances = len(self.utterances) # Number of utterances
 
-        init_segmented_list = utils.text_to_line(self.get_segmented()) 
+        init_segmented_list = utils.text_to_line(self.get_segmented())
 
         # Restaurant object to count the number of tables (dict)
         self.restaurant = Restaurant(self.alpha_1, self.discount, self.seed)
@@ -258,7 +267,7 @@ class SupervisedPYPState(PYPState): # Information on the whole document
             #print('Smooth denominator:', smooth_denominator)
             for ngram in list_all_ngram: #ngrams_in_dict.keys():
                 self.phoneme_ps[ngram] = (ngrams_in_dict[ngram] + epsilon) \
-                                         / (letters_in_dict[ngram[0]] + smooth_denominator)
+                            / (letters_in_dict[ngram[0]] + smooth_denominator)
             #print('Ngram dictionary: {0}'.format(self.phoneme_ps))
 
             print('Sum of probabilities: {0}'.format(sum(self.phoneme_ps.values())))
@@ -321,7 +330,7 @@ class SupervisedPYPUtterance(PYPUtterance):
     '''Information on one utterance of the document'''
     def __init__(self, sentence, sup_sentence, p_segment, random_gen,
                  sup_boundary_method='none', sup_boundary_parameter=0,
-                 supervision_bool=False):
+                 supervision_bool=False, sup_data=dict()):
         self.sentence = sentence # Unsegmented utterance str
         self.sup_sentence = sup_sentence # Supervision sentence (with spaces)
         self.p_segment = p_segment
@@ -338,6 +347,9 @@ class SupervisedPYPUtterance(PYPUtterance):
         self.sup_boundaries = []
         if (self.sup_boundary_method == 'sentence') and not supervision_bool:
             self.sup_boundaries  = [-1] * (len(self.sentence))
+        elif (self.sup_boundary_method == 'word'):
+            self.sup_data = sup_data
+            self.init_word_sup_boundaries()
         else:
             self.init_sup_boundaries()
 
@@ -372,6 +384,26 @@ class SupervisedPYPUtterance(PYPUtterance):
                 else:
                     self.sup_boundaries.append(0)
             boundary_track += 1
+        self.sup_boundaries.append(1)
+
+    def init_word_sup_boundaries(self):
+        split_sup_sent = utils.line_to_word(self.sup_sentence)
+        previous_word_known = True
+        for word in split_sup_sent:
+            word_length = len(word)
+            if word in self.sup_data:
+                if previous_word_known:
+                    pass
+                else:
+                    self.sup_boundaries.pop()
+                    self.sup_boundaries.append(1)
+                self.sup_boundaries.extend([0] * (word_length - 1))
+                self.sup_boundaries.append(1)
+                previous_word_known = True
+            else:
+                self.sup_boundaries.extend([-1] * (word_length))
+                previous_word_known = False
+        self.sup_boundaries.pop()
         self.sup_boundaries.append(1)
 
     #def numer_base(self, word, state):

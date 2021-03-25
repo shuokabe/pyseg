@@ -94,7 +94,7 @@ class State: # Information on the whole document
         # Data and Utterance object
         self.unsegmented = utils.unsegmented(data)
         # Remove empty string
-        self.unsegmented_list = utils.text_to_line(self.unsegmented) 
+        self.unsegmented_list = utils.text_to_line(self.unsegmented)
 
         # Variable to store alphabet, utterance, and lexicon information
         self.utterances = [] # Stored Utterance objects
@@ -191,7 +191,6 @@ class State: # Information on the whole document
             pos = 0
             utils.check_equality(len(boundaries_line), len(unsegmented_line))
             #utils.check_equality(len(self.boundaries[i]), len(unsegmented_line))
-            #for boundary in self.boundaries[i]: #
             for boundary in boundaries_line:
                 if boundary: # If there is a boundary
                     segmented_line_list += [unsegmented_line[beg:(pos + 1)]]
@@ -199,16 +198,31 @@ class State: # Information on the whole document
                 pos += 1
             # Convert list of words into a string sentence
             segmented_line = ' '.join(segmented_line_list)
-            #segmented_text_list.append(segmented_line)
-            segmented_text += segmented_line + '\n'
+            segmented_text_list.append(segmented_line)
+            #segmented_text += segmented_line + '\n'
 
-        return segmented_text #'\n'.join(segmented_text_list)
+        return '\n'.join(segmented_text_list) #segmented_text
 
 
 # Utterance in unigram case
 class Utterance: # Information on one utterance of the document
+    '''Utterance class for each sentence of the document.
+
+    Parameters
+    ----------
+    sentence : string
+        Unsegmented sentence
+    p_segment : float
+        Probability to have a boundary at a given position
+
+    Attributes
+    ----------
+    line_boundaries : list of bools [bools] (or [0 or 1])
+        List of boundary statuses (0 or 1) for each position in the sentence.
+
+    '''
     def __init__(self, sentence, p_segment):
-        self.sentence = sentence # Unsegmented utterance str
+        self.sentence = sentence # Unsegmented utterance
         self.p_segment = p_segment
         utils.check_probability(p_segment)
 
@@ -216,7 +230,7 @@ class Utterance: # Information on one utterance of the document
         self.init_boundary()
 
     def init_boundary(self): # Random case only
-        for i in range(len(self.sentence) - 1): # Unsure for the range
+        for i in range(len(self.sentence) - 1):
             rand_val = random.random()
             if rand_val < self.p_segment:
                 self.line_boundaries.append(True)
@@ -232,20 +246,20 @@ class Utterance: # Information on one utterance of the document
         '''Return the word on the left of i.'''
         utils.check_value_between(i, 0, len(self.sentence))
         prev = self.prev_boundary(i)
-        return self.sentence[(prev + 1):(i + 1)] #
+        return self.sentence[(prev + 1):(i + 1)]
 
     def right_word(self, i):
         '''Return the word on the right of i.'''
         utils.check_value_between(i, 0, len(self.sentence) - 1) # No last pos
         next = self.next_boundary(i)
-        return self.sentence[(i + 1):(next + 1)] #
+        return self.sentence[(i + 1):(next + 1)]
 
     def centre_word(self, i):
         '''Return the word which contains the i-th position in the sentence.'''
         utils.check_value_between(i, 0, len(self.sentence) - 1) # No last pos
         prev = self.prev_boundary(i)
         next = self.next_boundary(i)
-        return self.sentence[(prev + 1):(next + 1)] #
+        return self.sentence[(prev + 1):(next + 1)]
 
     def sample(self, state, temp):
         #if (model_type == 1): # Unigram model

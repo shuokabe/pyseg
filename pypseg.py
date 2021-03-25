@@ -71,16 +71,19 @@ class Restaurant:
         '''Assign a customer (word) to a table in the restaurant.'''
         utils.check_equality(len(self.customers.keys()), len(self.restaurant.keys()))
         if word in self.restaurant.keys(): # Add the customer to a table (possibly new)
-            n_customers = self.customers[word]
+            n_customers_w = self.customers[word]
+            n_tables_w = self.tables[word]
             random_value = self.random_gen.random()
-            new_customer = random_value * (n_customers + self.alpha_1)
+            new_customer = random_value * (n_customers_w + self.alpha_1 \
+               + self.discount * (self.n_tables - n_tables_w))
+            #new_customer = random_value * (n_customers_w + self.alpha_1)
             utils.check_equality(self.tables[word], len(self.restaurant[word]))
-            if (new_customer > (n_customers - (self.discount * self.tables[word]))):
+            if (new_customer > (n_customers_w - (self.discount * n_tables_w))):
                 # Open a new table
                 self.open_table(word, False)
             else: # Add the new customer in an existing table
                 cumulative_sum = 0
-                for k in range(self.tables[word]):
+                for k in range(n_tables_w):
                     cumulative_sum += (self.restaurant[word][k] - self.discount)
                     if new_customer <= cumulative_sum: # Add the customer to that table
                         self.restaurant[word][k] += 1

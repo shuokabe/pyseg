@@ -60,12 +60,12 @@ def parse_args():
     parser.add_argument('--supervision_parameter', default=0, type=float,
                         help='parameter value for (dictionary) supervision')
     parser.add_argument('--supervision_boundary', default='none', type=str,
-                        choices=['none', 'true', 'random', 'sentence'],
+                        choices=['none', 'true', 'random', 'sentence', 'word'],
                         help='boundary supervision method')
     parser.add_argument('--supervision_boundary_parameter', default=0, type=float,
                         help='parameter value for boundary supervision')
 
-    parser.add_argument('--version', action='version', version='1.2.8')
+    parser.add_argument('--version', action='version', version='1.3.3')
 
     return parser.parse_args()
 
@@ -77,7 +77,7 @@ def main():
     filename = args.filename
 
     # Seed
-    rnd_seed = args.rnd_seed #42
+    rnd_seed = args.rnd_seed
     random.seed(rnd_seed)
 
     data = open(filename, 'r', encoding = 'utf8').read()
@@ -93,7 +93,7 @@ def main():
     if model_name == 'pypseg':
         # If supervision
         if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'):
-            if args.supervision_method != 'none':
+            if args.supervision_file != 'none': #args.supervision_method != 'none':
                 with open(args.supervision_file, 'rb') as d:
                     supervision_data = pickle.load(d)
             else:
@@ -114,7 +114,7 @@ def main():
     else: # Default model: dpseg
         # If supervision
         if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'):
-            if args.supervision_method != 'none':
+            if args.supervision_file != 'none': #args.supervision_method != 'none':
                 with open(args.supervision_file, 'rb') as d:
                     supervision_data = pickle.load(d)
             else:
@@ -157,7 +157,7 @@ def main():
         if ((i % iter_incr) == 0) and (i != iters): # Change temperature
             temp_index += 1
             temp = temperatures[temp_index]
-            logging.info(f'iter {i:d}: temp = {temp:.1f}') #.format(i, temp))
+            logging.info(f'iter {i:d}: temp = {temp:.1f}')
 
         main_state.sample(temp)
         if args.supervision_method in ['naive', 'naive_freq']:
@@ -175,13 +175,6 @@ def main():
 
     logging.info(f'{iters:d} iterations')
     if model_name == 'pypseg':
-        #utils.check_value_between(main_state.restaurant.n_tables,
-        #                          main_state.word_counts.n_types,
-        #                          main_state.word_counts.n_tokens)
-        #utils.check_equality((sum(main_state.restaurant.customers.values())),
-        #                      main_state.word_counts.n_tokens)
-        #utils.check_equality(main_state.restaurant.n_customers,
-        #                     main_state.word_counts.n_tokens)
         logging.debug('{} tables'.format(main_state.restaurant.n_tables))
         #print('Restaurant', main_state.restaurant.restaurant)
 
@@ -193,9 +186,6 @@ def main():
 
     segmented_text = main_state.get_segmented()
 
-    #output_file = args.output_file_base + '.txt'
-    #with open(output_file, 'w',  encoding = 'utf8') as out_text:
-    #    out_text.write(segmented_text)
 
     # Statistics
     stats = Statistics(segmented_text)
@@ -210,7 +200,7 @@ def main():
     if args.supervision_boundary == 'sentence':
         logging.info('Without the given sentences:')
         split_gold = utils.text_to_line(data)
-        split_seg = utils.text_to_line(segmented_text) 
+        split_seg = utils.text_to_line(segmented_text)
         if args.supervision_boundary_parameter < 1: # Ratio case
             supervision_index = int(np.ceil(args.supervision_boundary_parameter * len(split_seg)))
             print('Supervision index:', supervision_index)

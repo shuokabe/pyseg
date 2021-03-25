@@ -2,7 +2,7 @@
 
 pyseg is a Python implementation of dpseg, a word segmentation model.
 
-dpseg is a Dirichlet process word segmentation model, developed by Sharon Goldwater and explained in [A Bayesian Framework for Word Segmentation: Exploring the Effects of Context][1],  Sharon Goldwater, Thomas L. Griffiths, and Mark Johnson.
+dpseg is a Dirichlet process word segmentation model, developed by Sharon Goldwater and explained in [A Bayesian Framework for Word Segmentation: Exploring the Effects of Context][1], Sharon Goldwater, Thomas L. Griffiths, and Mark Johnson.
 
 The original implementation in C++ can be found [here][2].
 

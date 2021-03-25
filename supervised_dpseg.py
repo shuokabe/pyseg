@@ -43,13 +43,10 @@ class SupervisedState(State): # Information on the whole document
             logging.info('Supervision with a dictionary')
             logging.info(f' Supervision method: {self.sup_method:s}, '
                          f'supervision parameter: {self.sup_parameter:.2f}')
-            #logging.info(' Supervision method: {0:s}, supervision parameter: {1:.2f}'.format(
-            #             self.sup_method, self.sup_parameter))
         if self.sup_boundary_method != 'none': # Boundary supervision
             logging.info('Supervision with segmentation boundaries')
             logging.info(f' Boundary supervision method: {self.sup_boundary_method:s}, '
                          f'boundary supervision parameter: {self.sup_boundary_parameter:.2f}')
-                         #.format(self.sup_boundary_method, self.sup_boundary_parameter))
 
         # Data and Utterance object
         self.unsegmented = utils.unsegmented(data)
@@ -59,8 +56,6 @@ class SupervisedState(State): # Information on the whole document
         self.utterances = [] # Stored Utterance objects
 
         if self.sup_boundary_method != 'none': # Boundary supervision
-            #if self.unsegmented != utils.unsegmented(self.sup_data):
-            #    raise ValueError('The supervision data must have the same content as the input text.')
             self.sup_boundaries = [] # Stored supervision boundaries
             sup_data_list = utils.text_to_line(data)
             utils.check_equality(len(self.unsegmented_list), len(sup_data_list))
@@ -69,7 +64,8 @@ class SupervisedState(State): # Information on the whole document
             if self.sup_boundary_method == 'sentence':
                 supervision_bool = True
                 if self.sup_boundary_parameter < 1: # Ratio case
-                    supervision_index = int(np.ceil(self.sup_boundary_parameter * len(self.unsegmented_list)))
+                    supervision_index = int(np.ceil(self.sup_boundary_parameter \
+                                            * len(self.unsegmented_list)))
                     print('Supervision index:', supervision_index)
                 else: # Index case
                     supervision_index = self.sup_boundary_parameter
@@ -79,16 +75,23 @@ class SupervisedState(State): # Information on the whole document
                     supervision_bool = False
                 unseg_line = self.unsegmented_list[i]
                 sup_line = sup_data_list[i]
-                utterance = SupervisedUtterance(
-                    unseg_line, sup_line, self.p_boundary, random_gen_sup,
-                    self.sup_boundary_method, self.sup_boundary_parameter,
-                    supervision_bool)
+                if self.sup_boundary_method == 'word':
+                    utterance = SupervisedUtterance(
+                        unseg_line, sup_line, self.p_boundary, random_gen_sup,
+                        self.sup_boundary_method, self.sup_boundary_parameter,
+                        sup_data = self.sup_data)
+                else:
+                    utterance = SupervisedUtterance(
+                        unseg_line, sup_line, self.p_boundary, random_gen_sup,
+                        self.sup_boundary_method, self.sup_boundary_parameter,
+                        supervision_bool)
                 self.utterances.append(utterance)
                 self.sup_boundaries.append(utterance.sup_boundaries)
 
             # Count number of supervision boundaries
             #print(self.sup_boundaries)
-            flat_sup_boundaries = [boundary for boundaries in self.sup_boundaries for boundary in boundaries]
+            flat_sup_boundaries = [boundary for boundaries in self.sup_boundaries
+                                   for boundary in boundaries]
             print('Number of boundaries:', len(flat_sup_boundaries))
             counter_sup_boundaries = collections.Counter(flat_sup_boundaries)
             print('Counter of boundaries:', counter_sup_boundaries)
@@ -114,7 +117,8 @@ class SupervisedState(State): # Information on the whole document
                     naive_dictionary[word] = self.sup_parameter
                 else: #self.sup_method == 'naive_freq':
                     naive_dictionary[word] = frequency * self.sup_parameter
-            self.word_counts.lexicon = self.word_counts.lexicon + collections.Counter(naive_dictionary)
+            self.word_counts.lexicon = self.word_counts.lexicon \
+                                       + collections.Counter(naive_dictionary)
             print(f'{self.sup_method.capitalize()} dictionary:', self.word_counts.lexicon)
 
         # Alphabet (list of letters)
@@ -204,9 +208,11 @@ class SupervisedState(State): # Information on the whole document
             for word in self.sup_data.keys():
                 considered_word = f'<{word:s}>' #.format(word)
                 if chosen_method == 'bigram':
-                    word_ngram_list = [considered_word[i:(i + 2)] for i in range(len(considered_word) - 1)]
+                    word_ngram_list = [considered_word[i:(i + 2)]
+                                       for i in range(len(considered_word) - 1)]
                 elif chosen_method == 'trigram':
-                    word_ngram_list = [considered_word[i:(i + 3)] for i in range(len(considered_word) - 2)]
+                    word_ngram_list = [considered_word[i:(i + 3)]
+                                       for i in range(len(considered_word) - 2)]
                 else:
                     pass
                 ngrams_in_dict_list += word_ngram_list
@@ -300,7 +306,7 @@ class SupervisedUtterance(Utterance):
     '''Information on one utterance of the document'''
     def __init__(self, sentence, sup_sentence, p_segment, random_gen,
                  sup_boundary_method='none', sup_boundary_parameter=0,
-                 supervision_bool=False):
+                 supervision_bool=False, sup_data=dict()):
         self.sentence = sentence # Unsegmented utterance str
         self.sup_sentence = sup_sentence # Supervision sentence (with spaces)
         self.p_segment = p_segment
@@ -318,6 +324,9 @@ class SupervisedUtterance(Utterance):
         self.sup_boundaries = []
         if (self.sup_boundary_method == 'sentence') and not supervision_bool:
             self.sup_boundaries  = [-1] * (len(self.sentence))
+        elif (self.sup_boundary_method == 'word'):
+            self.sup_data = sup_data
+            self.init_word_sup_boundaries()
         else:
             self.init_sup_boundaries()
 
@@ -356,6 +365,27 @@ class SupervisedUtterance(Utterance):
             boundary_track += 1
         self.sup_boundaries.append(1)
         #random.setstate(random_state)
+
+    def init_word_sup_boundaries(self):
+        split_sup_sent = utils.line_to_word(self.sup_sentence)
+        previous_word_known = True
+        for word in split_sup_sent:
+            word_length = len(word)
+            if word in self.sup_data:
+                if previous_word_known:
+                    pass
+                else:
+                    self.sup_boundaries.pop()
+                    self.sup_boundaries.append(1)
+                self.sup_boundaries.extend([0] * (word_length - 1))
+                self.sup_boundaries.append(1)
+                previous_word_known = True
+            else:
+                self.sup_boundaries.extend([-1] * (word_length))
+                previous_word_known = False
+        self.sup_boundaries.pop()
+        self.sup_boundaries.append(1)
+        #print('boundaries:', self.sup_boundaries, self.sup_sentence)
 
     #def numer_base(self, word, state):
 
