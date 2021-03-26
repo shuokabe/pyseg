@@ -16,7 +16,9 @@ from pyseg.pypseg import Restaurant, PYPState, PYPUtterance
 
 # Exclusive to pypseg to count the number of tables
 class Restaurant(Restaurant):
-    #def __init__(self, alpha_1, discount, seed=42):
+    #def __init__(self, alpha_1, discount, state, seed=42):
+
+    #def phi(self, word):
 
     def add_naive_word(self, word, sup_parameter):
         '''Assign a word to a table in the restaurant for the naive method.
@@ -44,8 +46,8 @@ class Restaurant(Restaurant):
                 n_tables_w = self.tables[word]
                 random_value = self.random_gen.random()
                 #new_customer = random_value * (n_customers_w + self.alpha_1)
-                new_customer = random_value * (n_customers_w + self.alpha_1 \
-                   + self.discount * (self.n_tables - n_tables_w))
+                new_customer = random_value * self.phi(word) #* (n_customers_w + self.alpha_1 \
+                   #+ self.discount * (self.n_tables - n_tables_w))
                 utils.check_equality(self.tables[word], len(self.restaurant[word]))
                 if (new_customer > (n_customers_w - (self.discount * self.tables[word]))):
                     # Open a new table
@@ -208,14 +210,14 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         init_segmented_list = utils.text_to_line(self.get_segmented())
 
         # Restaurant object to count the number of tables (dict)
-        self.restaurant = Restaurant(self.alpha_1, self.discount, self.seed)
-        self.restaurant.init_tables(init_segmented_list)
+        #self.restaurant = Restaurant(self.alpha_1, self.discount, self.seed)
+        #self.restaurant.init_tables(init_segmented_list)
         #print('Restaurant:', self.restaurant.restaurant)
-        logging.debug(f'{self.restaurant.n_tables} tables initially')
+        #logging.debug(f'{self.restaurant.n_tables} tables initially')
 
-        if self.sup_method == 'naive':
-            for word, frequency in self.sup_data.items():
-                self.restaurant.add_naive_word(word, self.sup_parameter)
+        #if self.sup_method == 'naive':
+        #    for word, frequency in self.sup_data.items():
+        #        self.restaurant.add_naive_word(word, self.sup_parameter)
                 #naive_dictionary[word] = self.sup_parameter
             #print(f'{self.sup_method.capitalize()} restaurant:', self.restaurant)
 
@@ -228,6 +230,18 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         self.phoneme_ps = dict()
         #self.init_probs() # How to initialise the boundaries (here: random)
         self.init_phoneme_probs()
+
+        # Restaurant object to count the number of tables (dict)
+        self.restaurant = Restaurant(self.alpha_1, self.discount, self.seed)
+        self.restaurant.init_tables(init_segmented_list)
+        #print('Restaurant:', self.restaurant.restaurant)
+        logging.debug(f'{self.restaurant.n_tables} tables initially')
+
+        if self.sup_method == 'naive':
+            for word, frequency in self.sup_data.items():
+                self.restaurant.add_naive_word(word, self.sup_parameter)
+                #naive_dictionary[word] = self.sup_parameter
+            #print(f'{self.sup_method.capitalize()} restaurant:', self.restaurant)
 
 
     def init_phoneme_probs(self):

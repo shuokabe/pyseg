@@ -46,6 +46,8 @@ class Restaurant:
         Total number of customers (sum(self.customers.values()))
         Equal to Lexicon.n_tokens in dpseg.
 
+    state : PYPState
+        Related PYPState object for the p_word function
     alpha_1 : integer
         Unigram concentration parameter
     discount : float
@@ -54,18 +56,27 @@ class Restaurant:
         Random number generator (exclusive to the restaurant)
 
     '''
-    def __init__(self, alpha_1, discount, seed=42):
+    def __init__(self, alpha_1, discount, state, seed=42):
         self.restaurant = dict()
         self.tables = dict()
         self.n_tables = 0
         self.customers = dict()
         self.n_customers = 0
 
+        self.state = state
+
         # Parameters of the model
         self.alpha_1 = alpha_1
         self.discount = discount
 
         self.random_gen = random.Random(seed) # Avoid issues with main random numbers
+
+    def phi(self, word):
+        '''numer_base function from PYPUtterance.'''
+        base = self.customers[word] - (self.discount * self.tables[word])
+        base += ((self.discount * self.n_tables) + self.alpha_1) \
+                * self.state.p_word(word)
+        return base
 
     def add_customer(self, word):
         '''Assign a customer (word) to a table in the restaurant.'''
@@ -74,8 +85,8 @@ class Restaurant:
             n_customers_w = self.customers[word]
             n_tables_w = self.tables[word]
             random_value = self.random_gen.random()
-            new_customer = random_value * (n_customers_w + self.alpha_1 \
-               + self.discount * (self.n_tables - n_tables_w))
+            new_customer = random_value * self.phi(word) #* (n_customers_w + self.alpha_1 \
+               #+ self.discount * (self.n_tables - n_tables_w))
             #new_customer = random_value * (n_customers_w + self.alpha_1)
             utils.check_equality(self.tables[word], len(self.restaurant[word]))
             if (new_customer > (n_customers_w - (self.discount * n_tables_w))):
@@ -195,17 +206,10 @@ class PYPState(State): # Information on the whole document
         #self.word_counts.init_lexicon_text(init_segmented_list)
 
         # Restaurant object to count the number of tables (dict)
-        self.restaurant = Restaurant(self.alpha_1, self.discount, self.seed)
-        #random_state = random.getstate() # Avoid issues with random numbers
-        self.restaurant.init_tables(init_segmented_list)
-        #random.setstate(random_state)
+        #self.restaurant = Restaurant(self.alpha_1, self.discount, self, self.seed)
+        #self.restaurant.init_tables(init_segmented_list)
         #print('Restaurant:', self.restaurant.restaurant)
-        logging.debug(f'{self.restaurant.n_tables} tables initially')
-        #utils.check_value_between(self.restaurant.n_tables, self.word_counts.n_types,
-                                   #self.word_counts.n_tokens)
-        #utils.check_equality((sum(self.restaurant.customers.values())),
-        #self.word_counts.n_tokens)
-        #utils.check_equality(self.restaurant.n_customers, self.word_counts.n_tokens)
+        #logging.debug(f'{self.restaurant.n_tables} tables initially')
 
         # Alphabet (list of letters)
         self.alphabet = utils.delete_value_from_vector(list(set(self.unsegmented)), '\n')
@@ -215,6 +219,10 @@ class PYPState(State): # Information on the whole document
         self.phoneme_ps = dict()
         #self.init_probs() # How to initialise the boundaries (here: random)
         self.init_phoneme_probs()
+
+        # Restaurant object to count the number of tables (dict)
+        self.restaurant = Restaurant(self.alpha_1, self.discount, self, self.seed)
+        self.restaurant.init_tables(init_segmented_list)
 
 
     #def init_phoneme_probs(self):
