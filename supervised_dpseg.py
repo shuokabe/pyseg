@@ -134,6 +134,10 @@ class SupervisedState(State): # Information on the whole document
         #self.init_probs() # How to initialise the boundaries (here: random)
         self.init_phoneme_probs()
 
+        if self.sup_method in ['mixture', 'mixture_bigram']:
+            # Total number of words in the supervision dictionary
+            self.n_words_sup = sum(self.sup_data.values())
+
 
     def init_phoneme_probs(self):
         '''
@@ -284,9 +288,12 @@ class SupervisedState(State): # Information on the whole document
 
         if self.sup_method in ['mixture', 'mixture_bigram']:
             #print('p before mixture:', p)
-            n_words_dict = sum(self.sup_data.values())
-            p = self.sup_parameter / n_words_dict * utils.indicator(string, self.sup_data) \
-                + (1 - self.sup_parameter) * p
+            #n_words_dict = sum(self.sup_data.values())
+            #p = self.sup_parameter / n_words_dict * utils.indicator(string, self.sup_data) \
+            #    + (1 - self.sup_parameter) * p
+            p = (1 - self.sup_parameter) * p
+            p += (self.sup_parameter / self.n_words_sup) \
+                  * utils.indicator(string, self.sup_data)
             #print('p after mixture:', p)
         elif self.sup_method == 'initialise': # Explicit length model
             #print('p before length:', p)

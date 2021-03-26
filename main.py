@@ -65,7 +65,7 @@ def parse_args():
     parser.add_argument('--supervision_boundary_parameter', default=0, type=float,
                         help='parameter value for boundary supervision')
 
-    parser.add_argument('--version', action='version', version='1.3.3')
+    parser.add_argument('--version', action='version', version='1.3.4')
 
     return parser.parse_args()
 

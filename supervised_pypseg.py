@@ -33,7 +33,7 @@ class Restaurant(Restaurant):
             self.tables[word] = 1
             self.n_tables += 1
 
-    def add_customer(self, word, random_value=None):
+    def add_customer(self, word): #, random_value=None):
         '''Assign a customer (word) to a table in the restaurant.
 
         Modified version due to naive words not being customers.
@@ -221,7 +221,6 @@ class SupervisedPYPState(PYPState): # Information on the whole document
                 #naive_dictionary[word] = self.sup_parameter
             #print(f'{self.sup_method.capitalize()} restaurant:', self.restaurant)
 
-
         # Alphabet (list of letters)
         self.alphabet = utils.delete_value_from_vector(list(set(self.unsegmented)), '\n')
         self.alphabet_size = len(self.alphabet)
@@ -231,8 +230,12 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         #self.init_probs() # How to initialise the boundaries (here: random)
         self.init_phoneme_probs()
 
+        if self.sup_method in ['mixture', 'mixture_bigram']:
+            # Total number of words in the supervision dictionary
+            self.n_words_sup = sum(self.sup_data.values())
+
         # Restaurant object to count the number of tables (dict)
-        self.restaurant = Restaurant(self.alpha_1, self.discount, self.seed)
+        self.restaurant = Restaurant(self.alpha_1, self.discount, self, self.seed)
         self.restaurant.init_tables(init_segmented_list)
         #print('Restaurant:', self.restaurant.restaurant)
         logging.debug(f'{self.restaurant.n_tables} tables initially')
@@ -255,7 +258,7 @@ class SupervisedPYPState(PYPState): # Information on the whole document
             # Supervision with a dictionary
             logging.info('Phoneme distribution: dictionary supervision')
             chosen_method = 'bigram'
-            logging.info(' Chosen initialisation method: {0:s}'.format(chosen_method))
+            logging.info(f' Chosen initialisation method: {chosen_method}')
 
             # Create the bigram distirbution dictionary
             ngrams_in_dict_list = [] # List of ngrams in the supervision data
@@ -321,13 +324,16 @@ class SupervisedPYPState(PYPState): # Information on the whole document
 
         if self.sup_method in ['mixture', 'mixture_bigram']:
             #print('p before mixture:', p)
-            n_words_dict = sum(self.sup_data.values())
-            p = self.sup_parameter / n_words_dict * utils.indicator(string, self.sup_data) \
-                + (1 - self.sup_parameter) * p
+            #n_words_dict = sum(self.sup_data.values())
+            #p = self.sup_parameter / n_words_dict * utils.indicator(string, self.sup_data) \
+            #+ (1 - self.sup_parameter) * p
+            p = (1 - self.sup_parameter) * p
+            p += (self.sup_parameter / self.n_words_sup) \
+                  * utils.indicator(string, self.sup_data)
             #print('p after mixture:', p)
-        elif self.sup_method == 'initialise': # Explicit length model
+        #elif self.sup_method == 'initialise': # Explicit length model
             #print('p before length:', p)
-            p = p * self.word_length_ps.get(len(string), 10 ** (-5))
+        #    p = p * self.word_length_ps.get(len(string), 10 ** (-5))
             #print('p after length:', p)
         else:
             pass

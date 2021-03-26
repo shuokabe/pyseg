@@ -46,12 +46,12 @@ class Restaurant:
         Total number of customers (sum(self.customers.values()))
         Equal to Lexicon.n_tokens in dpseg.
 
-    state : PYPState
-        Related PYPState object for the p_word function
     alpha_1 : integer
         Unigram concentration parameter
     discount : float
         Discount parameter for Pitman-Yor process
+    state : PYPState
+        Related PYPState object for the p_word function
     random_gen : Random()
         Random number generator (exclusive to the restaurant)
 
@@ -63,12 +63,11 @@ class Restaurant:
         self.customers = dict()
         self.n_customers = 0
 
-        self.state = state
-
         # Parameters of the model
         self.alpha_1 = alpha_1
         self.discount = discount
 
+        self.state = state
         self.random_gen = random.Random(seed) # Avoid issues with main random numbers
 
     def phi(self, word):
@@ -223,13 +222,14 @@ class PYPState(State): # Information on the whole document
         # Restaurant object to count the number of tables (dict)
         self.restaurant = Restaurant(self.alpha_1, self.discount, self, self.seed)
         self.restaurant.init_tables(init_segmented_list)
+        logging.debug(f'{self.restaurant.n_tables} tables initially')
 
 
     #def init_phoneme_probs(self):
 
     # Probabilities
     def p_cont(self):
-        n_words = self.restaurant.n_customers #self.word_counts.n_tokens
+        n_words = self.restaurant.n_customers 
         p = (n_words - self.n_utterances + 1 + self.beta / 2) / (n_words + 1 + self.beta)
         utils.check_probability(p)
         return p
