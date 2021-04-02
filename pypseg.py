@@ -84,8 +84,7 @@ class Restaurant:
             n_customers_w = self.customers[word]
             n_tables_w = self.tables[word]
             random_value = self.random_gen.random()
-            new_customer = random_value * self.phi(word) #* (n_customers_w + self.alpha_1 \
-               #+ self.discount * (self.n_tables - n_tables_w))
+            new_customer = random_value * self.phi(word)
             #new_customer = random_value * (n_customers_w + self.alpha_1)
             utils.check_equality(self.tables[word], len(self.restaurant[word]))
             if (new_customer > (n_customers_w - (self.discount * n_tables_w))):
@@ -229,7 +228,7 @@ class PYPState(State): # Information on the whole document
 
     # Probabilities
     def p_cont(self):
-        n_words = self.restaurant.n_customers 
+        n_words = self.restaurant.n_customers
         p = (n_words - self.n_utterances + 1 + self.beta / 2) / (n_words + 1 + self.beta)
         utils.check_probability(p)
         return p
@@ -267,7 +266,6 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
     #def init_boundary(self): # Random case only
 
     def numer_base(self, word, state):
-        #if state.word_counts.lexicon[word] == 0: # If the word is not in the lexicon
         #if word not in state.word_counts.lexicon: # If the word is not in the lexicon
         if word not in state.restaurant.customers: # If the word is not in the lexicon
             base = 0

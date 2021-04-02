@@ -15,6 +15,118 @@ logging.basicConfig(level = logging.DEBUG, format = '[%(asctime)s] %(message)s',
 from pyseg.dpseg import Lexicon, State, Utterance
 
 
+class SupervisionHelper():
+    '''Class to handle supervision.'''
+    def __init__(self, supervision_data=None, supervision_method='none',
+                 supervision_parameter=0, supervision_boundary='none',
+                 supervision_boundary_parameter=0):
+        # Supervision variable
+        self.sup_data = supervision_data # dictionary or text file
+        self.sup_method = supervision_method
+        self.sup_parameter = supervision_parameter
+        self.sup_boundary_method = supervision_boundary
+        self.sup_boundary_parameter = supervision_boundary_parameter
+
+        if self.sup_method != 'none': # Dictionary supervision
+            logging.info('Supervision with a dictionary')
+            logging.info(f' Supervision method: {self.sup_method:s}, '
+                         f'supervision parameter: {self.sup_parameter:.2f}')
+        if self.sup_boundary_method != 'none': # Boundary supervision
+            logging.info('Supervision with segmentation boundaries')
+            logging.info(f' Boundary supervision method: {self.sup_boundary_method:s}, '
+                         f'boundary supervision parameter: {self.sup_boundary_parameter:.2f}')
+
+
+    def set_ngram_character_model(self, state_alphabet):
+        # Supervision with a dictionary
+        logging.info('Phoneme distribution: dictionary supervision')
+        if self.sup_method in ['init_bigram', 'mixture_bigram']:
+            chosen_method = 'bigram'
+        elif self.sup_method == 'init_trigram':
+            chosen_method = 'trigram'
+        else: # chosen_method here: 'bigram' and 'trigram'
+            pass
+        logging.info(f' Chosen initialisation method: {chosen_method:s}')
+
+        # Create the bigram distirbution dictionary
+        ngrams_in_dict_list = [] # List of ngrams in the supervision data
+        for word in self.sup_data.keys():
+            considered_word = f'<{word:s}>'
+            if chosen_method == 'bigram':
+                word_ngram_list = [considered_word[i:(i + 2)]
+                                   for i in range(len(considered_word) - 1)]
+            elif chosen_method == 'trigram':
+                word_ngram_list = [considered_word[i:(i + 3)]
+                                   for i in range(len(considered_word) - 2)]
+            else:
+                pass
+            ngrams_in_dict_list += word_ngram_list
+        ngrams_in_dict = collections.Counter(ngrams_in_dict_list)
+
+        # List of ngrams without the last letter
+        letters_in_dict_list = [ngram[0] for ngram in ngrams_in_dict_list]
+        letters_in_dict = collections.Counter(letters_in_dict_list)
+        print('letters in dict', letters_in_dict)
+        #frequency_ngrams_dict = sum(ngrams_in_dict.values())
+        all_letters = state_alphabet + ['<', '>']
+        #print(all_letters)
+        if chosen_method == 'bigram':
+            list_all_ngram = [f'{first:s}{second:s}'
+                              for first in all_letters for second in all_letters]
+        elif chosen_method == 'trigram':
+            list_all_ngram = [f'{first:s}{second:s}{third:s}'
+                              for first in all_letters for second in all_letters
+                              for third in all_letters]
+        else:
+            pass
+
+        # Smoothing
+        epsilon = 0.01 # Smoothing parameter
+        smooth_denominator = epsilon * (len(all_letters))
+        phoneme_ps = dict()
+        #print('Smooth denominator:', smooth_denominator)
+        for ngram in list_all_ngram: #ngrams_in_dict.keys():
+            phoneme_ps[ngram] = (ngrams_in_dict[ngram] + epsilon) \
+                            / (letters_in_dict[ngram[0]] + smooth_denominator)
+        #print('Ngram dictionary: {0}'.format(self.phoneme_ps))
+        return phoneme_ps
+
+    def set_bigram_character_model(self, state_alphabet):
+        # Supervision with a dictionary
+        logging.info('Phoneme distribution: dictionary supervision')
+        chosen_method = 'bigram'
+        logging.info(f' Chosen initialisation method: {chosen_method}')
+
+        # Create the bigram distirbution dictionary
+        ngrams_in_dict_list = [] # List of ngrams in the supervision data
+        for word in self.sup_data.keys():
+            considered_word = f'<{word:s}>'
+            word_ngram_list = [considered_word[i:(i + 2)]
+                               for i in range(len(considered_word) - 1)]
+            ngrams_in_dict_list += word_ngram_list
+        ngrams_in_dict = collections.Counter(ngrams_in_dict_list)
+
+        # List of ngrams without the last letter
+        letters_in_dict_list = [ngram[0] for ngram in ngrams_in_dict_list]
+        letters_in_dict = collections.Counter(letters_in_dict_list)
+        print('letters in dict', letters_in_dict)
+        all_letters = state_alphabet + ['<', '>']
+        #print(all_letters)
+        list_all_ngram = [f'{first:s}{second:s}'
+                          for first in all_letters for second in all_letters]
+
+        # Smoothing
+        epsilon = 0.01 # Smoothing parameter
+        smooth_denominator = epsilon * (len(all_letters))
+        #print('Smooth denominator:', smooth_denominator)
+        phoneme_ps = dict()
+        for ngram in list_all_ngram: #ngrams_in_dict.keys():
+            phoneme_ps[ngram] = (ngrams_in_dict[ngram] + epsilon) \
+                        / (letters_in_dict[ngram[0]] + smooth_denominator)
+        #print('Ngram dictionary: {0}'.format(self.phoneme_ps))
+        return phoneme_ps
+
+
 # Unigram case
 class SupervisedState(State): # Information on the whole document
     def __init__(self, data, alpha_1, p_boundary, seed=42, supervision_data=None,
@@ -39,14 +151,17 @@ class SupervisedState(State): # Information on the whole document
         self.sup_boundary_method = supervision_boundary
         self.sup_boundary_parameter = supervision_boundary_parameter
 
-        if self.sup_method != 'none': # Dictionary supervision
-            logging.info('Supervision with a dictionary')
-            logging.info(f' Supervision method: {self.sup_method:s}, '
-                         f'supervision parameter: {self.sup_parameter:.2f}')
-        if self.sup_boundary_method != 'none': # Boundary supervision
-            logging.info('Supervision with segmentation boundaries')
-            logging.info(f' Boundary supervision method: {self.sup_boundary_method:s}, '
-                         f'boundary supervision parameter: {self.sup_boundary_parameter:.2f}')
+        #if self.sup_method != 'none': # Dictionary supervision
+        #    logging.info('Supervision with a dictionary')
+        #    logging.info(f' Supervision method: {self.sup_method:s}, '
+        #                 f'supervision parameter: {self.sup_parameter:.2f}')
+        #if self.sup_boundary_method != 'none': # Boundary supervision
+        #    logging.info('Supervision with segmentation boundaries')
+        #    logging.info(f' Boundary supervision method: {self.sup_boundary_method:s}, '
+        #                 f'boundary supervision parameter: {self.sup_boundary_parameter:.2f}')
+        self.sup = SupervisionHelper(supervision_data,
+                     supervision_method, supervision_parameter,
+                     supervision_boundary, supervision_boundary_parameter)
 
         # Data and Utterance object
         self.unsegmented = utils.unsegmented(data)
@@ -90,8 +205,7 @@ class SupervisedState(State): # Information on the whole document
 
             # Count number of supervision boundaries
             #print(self.sup_boundaries)
-            flat_sup_boundaries = [boundary for boundaries in self.sup_boundaries
-                                   for boundary in boundaries]
+            flat_sup_boundaries = utils.flatten_2D(self.sup_boundaries)
             print('Number of boundaries:', len(flat_sup_boundaries))
             counter_sup_boundaries = collections.Counter(flat_sup_boundaries)
             print('Counter of boundaries:', counter_sup_boundaries)
@@ -160,7 +274,6 @@ class SupervisedState(State): # Information on the whole document
                 word_length = len(word)
                 word_length_dict.setdefault(word_length, 0)
                 word_length_dict[word_length] += 1 # For length probabilities
-                #= word_length_dict.get(len(word), 0) + 1
             print('words in dict_str:', words_in_dict_str[0:50])
             total_frequence = sum(word_length_dict.values())
             mean_token_length = sum([word_length * frequency
@@ -188,67 +301,17 @@ class SupervisedState(State): # Information on the whole document
 
             for letter in self.alphabet:
                 if chosen_method == 'length':
-                    #self.phoneme_ps = {letter: 1 / self.alphabet_size}
                     self.phoneme_ps[letter] = 1 / self.alphabet_size
                 else:
                     self.phoneme_ps[letter] = letters_in_dict[letter] / frequency_letters_dict
             #assert (abs(sum(self.phoneme_ps.values()) - 1.0) < 10^(-5)),
             #        'The sum of the probabilities is not 1.'
-            print('Sum of probabilities: {0}'.format(sum(self.phoneme_ps.values())))
+            print(f'Sum of probabilities: {sum(self.phoneme_ps.values())}')
 
         elif self.sup_method in ['init_bigram', 'init_trigram', 'mixture_bigram']:
-            # Supervision with a dictionary
-            logging.info('Phoneme distribution: dictionary supervision')
-            if self.sup_method in ['init_bigram', 'mixture_bigram']:
-                chosen_method = 'bigram'
-            elif self.sup_method == 'init_trigram':
-                chosen_method = 'trigram'
-            else: # chosen_method here: 'bigram' and 'trigram'
-                pass
-            logging.info(' Chosen initialisation method: {0:s}'.format(chosen_method))
+            self.phoneme_ps = self.sup.set_ngram_character_model(self.alphabet)
 
-            # Create the bigram distirbution dictionary
-            ngrams_in_dict_list = [] # List of ngrams in the supervision data
-            for word in self.sup_data.keys():
-                considered_word = f'<{word:s}>' #.format(word)
-                if chosen_method == 'bigram':
-                    word_ngram_list = [considered_word[i:(i + 2)]
-                                       for i in range(len(considered_word) - 1)]
-                elif chosen_method == 'trigram':
-                    word_ngram_list = [considered_word[i:(i + 3)]
-                                       for i in range(len(considered_word) - 2)]
-                else:
-                    pass
-                ngrams_in_dict_list += word_ngram_list
-            ngrams_in_dict = collections.Counter(ngrams_in_dict_list)
-
-            # List of ngrams without the last letter
-            letters_in_dict_list = [ngram[0] for ngram in ngrams_in_dict_list]
-            letters_in_dict = collections.Counter(letters_in_dict_list)
-            print('letters in dict', letters_in_dict)
-            #frequency_ngrams_dict = sum(ngrams_in_dict.values())
-            all_letters = self.alphabet + ['<', '>']
-            #print(all_letters)
-            if chosen_method == 'bigram':
-                list_all_ngram = [f'{first:s}{second:s}'
-                                  for first in all_letters for second in all_letters]
-            elif chosen_method == 'trigram':
-                list_all_ngram = [f'{first:s}{second:s}{third:s}'
-                                  for first in all_letters for second in all_letters
-                                  for third in all_letters]
-                                  #['{0:s}{1:s}{2:s}'.format(first, second, third)
-            else:
-                pass
-            # Smoothing
-            epsilon = 0.01 # Smoothing parameter
-            smooth_denominator = epsilon * (len(all_letters))
-            #print('Smooth denominator:', smooth_denominator)
-            for ngram in list_all_ngram: #ngrams_in_dict.keys():
-                self.phoneme_ps[ngram] = (ngrams_in_dict[ngram] + epsilon) \
-                                         / (letters_in_dict[ngram[0]] + smooth_denominator)
-            #print('Ngram dictionary: {0}'.format(self.phoneme_ps))
-
-            print('Sum of probabilities: {0}'.format(sum(self.phoneme_ps.values())))
+            print(f'Sum of probabilities: {sum(self.phoneme_ps.values())}')
 
         else:
             # Uniform distribution case

@@ -69,3 +69,7 @@ def delete_value_from_vector(vector, value):
         return vector
     else:
         raise ValueError('The asked value is not in the vector.')
+
+def flatten_2D(list_of_list):
+    '''Flatten a 2D list (list of list).'''
+    return [element for element_list in list_of_list for element in element_list]
