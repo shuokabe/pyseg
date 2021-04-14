@@ -8,7 +8,7 @@ from tqdm import tqdm # Progress bar
 #from pyseg import dpseg
 from pyseg.dpseg import State
 from pyseg.pypseg import PYPState
-from pyseg.supervised_dpseg import SupervisionHelper, SupervisedState
+from pyseg.supervised_dpseg import SupervisedState
 from pyseg.supervised_pypseg import SupervisedPYPState
 from pyseg.analysis import Statistics, evaluate, get_boundaries
 from pyseg import utils
@@ -65,10 +65,10 @@ def parse_args():
     parser.add_argument('--supervision_boundary_parameter', default=0, type=float,
                         help='parameter value for boundary supervision')
     parser.add_argument('--online', default='none', type=str,
-                        choices=['none', 'without', 'with', 'bigram'],
+                        choices=['none', 'without', 'with'],
                         help='online learning')
 
-    parser.add_argument('--version', action='version', version='1.3.6')
+    parser.add_argument('--version', action='version', version='1.3.5')
 
     return parser.parse_args()
 
@@ -103,29 +103,11 @@ def get_segmented_sentence(sentence, boundaries):
         pos += 1
     return segmented_line
 
-def bigram_p_word(self, string):
-    '''Bigram p_word function for online learning'''
-    p = 1
-    # Character model
-    considered_word = f'<{string:s}>'
-    for i in range(len(considered_word) - 1):
-        ngram = considered_word[i:(i + 2)]
-        p = p * self.phoneme_ps[ngram]
-    return p
-
-def online_learning(data, state, model_name, temp, online):
+def online_learning(data, state, model_name, temp, update):
     '''Online learning function'''
-    import types
-    if online in ['with', 'bigram']:
-        update = True
-    else:
-        update = False
     split_gold = utils.text_to_line(data)
     gold_boundaries = get_boundaries(split_gold)
     loss_list = []
-    if online == 'bigram':
-        sup_dictionary = dict()
-    update_incr = state.n_utterances / 10
     for i in range(state.n_utterances):
         gold = gold_boundaries[i]
         utterance = state.utterances[i]
@@ -146,26 +128,11 @@ def online_learning(data, state, model_name, temp, online):
                     state.restaurant.remove_customer(word)
                 for word in gold_line:
                     state.restaurant.add_customer(word)
-                    if online == 'bigram':
-                        sup_dictionary[word] = sup_dictionary.get(word, 0) + 1
             else:
                 for word in segmented_line:
                     state.word_counts.remove_one(word)
                 for word in gold_line:
                     state.word_counts.add_one(word)
-                    if online == 'bigram':
-                        sup_dictionary[word] = sup_dictionary.get(word, 0) + 1
-            # For bigram online learning
-            if (i % update_incr == 0) and (online == 'bigram'):
-                print(i, sup_dictionary)
-                sup = SupervisionHelper(sup_dictionary, 'none', 'none', 'none',
-                                        'none')
-                state.phoneme_ps = sup.set_bigram_character_model(state.alphabet)
-                print(f'Sum of probabilities: {sum(state.phoneme_ps.values())}')
-                changeFunction = types.MethodType
-                state.p_word = changeFunction(bigram_p_word, state)
-                t = 'test'
-                print(f'p_word test: {state.p_word(t)}')
         else:
             pass
     return loss_list
@@ -234,13 +201,12 @@ def main():
 
     iters = args.iterations
     logging.info(f'Sampling {iters:d} iterations.')
-    if args.online != 'none':
-        logging.info(f'Online learning {args.online} update')
 
     logging.info('Evaluating a sample')
 
     logging.info(f'Random seed = {rnd_seed:d}')
     logging.info(f'Alphabet size = {main_state.alphabet_size:d}')
+    #.format(main_state.alphabet_size))
 
     temp_incr = 10 # How many increments of temperature to get to T = 1
     if (iters < temp_incr):
@@ -276,8 +242,11 @@ def main():
                                  sum(main_state.word_counts.lexicon.values()))
 
     # Online learning
-    if args.online != 'none':
-        loss_list = online_learning(data, main_state, model_name, temp, args.online)
+    if args.online == 'with':
+        update = True
+    else:
+        update = False
+    loss_list = online_learning(data, main_state, model_name, temp, update)
 
     logging.info(f'{iters:d} iterations')
     if model_name == 'pypseg':
@@ -327,9 +296,8 @@ def main():
         out_text.write(log_info)
         out_text.write('Segmented text:\n')
         out_text.write(segmented_text)
-        if args.online != 'none':
-            out_text.write('Loss list:\n')
-            out_text.write(str(loss_list))
+        out_text.write('Loss list:\n')
+        out_text.write(str(loss_list))
 
 
 if __name__ == "__main__":

@@ -258,6 +258,11 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         # Skip part to calculate the true distribution of characters
 
         if self.sup_method in ['init_bigram', 'mixture_bigram']:
+            # Supervision with a dictionary
+            logging.info('Phoneme distribution: dictionary supervision')
+            chosen_method = 'bigram'
+            logging.info(f' Chosen initialisation method: {chosen_method}')
+
             self.phoneme_ps = self.sup.set_bigram_character_model(self.alphabet)
 
             print(f'Sum of probabilities: {sum(self.phoneme_ps.values())}')

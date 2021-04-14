@@ -92,11 +92,6 @@ class SupervisionHelper():
         return phoneme_ps
 
     def set_bigram_character_model(self, state_alphabet):
-        # Supervision with a dictionary
-        logging.info('Phoneme distribution: dictionary supervision')
-        chosen_method = 'bigram'
-        logging.info(f' Chosen initialisation method: {chosen_method}')
-
         # Create the bigram distirbution dictionary
         ngrams_in_dict_list = [] # List of ngrams in the supervision data
         for word in self.sup_data.keys():
