@@ -67,11 +67,33 @@ def parse_args():
     parser.add_argument('--online', default='none', type=str,
                         choices=['none', 'without', 'with', 'bigram'],
                         help='online learning')
+    parser.add_argument('--online_batch', default=0, type=int,
+                        help='number of sentences after which Gibbs sampling '
+                        'is carried out for online learning')
+    parser.add_argument('--online_iter', default=0, type=int,
+                        help='number of iterations for online learning')
 
-    parser.add_argument('--version', action='version', version='1.3.6')
+    parser.add_argument('--version', action='version', version='1.3.7')
 
     return parser.parse_args()
 
+# Checking function
+def check_n_type_token(state, args):
+    '''Check the number of types and tokens after each sampling.'''
+    if args.supervision_method in ['naive', 'naive_freq']:
+        pass
+    elif args.model == 'pypseg': #model_name
+        utils.check_equality(state.restaurant.n_customers,
+                             sum(state.restaurant.customers.values()))
+        utils.check_equality(state.restaurant.n_tables,
+                             sum(state.restaurant.tables.values()))
+    else:
+        utils.check_equality(state.word_counts.n_types,
+                             len(state.word_counts.lexicon))
+        utils.check_equality(state.word_counts.n_tokens,
+                             sum(state.word_counts.lexicon.values()))
+
+# Online learning
 def loss(gold, segmented):
     '''Loss function to compare boundaries during online learning.'''
     n = len(gold) # The last boundary is always True
@@ -103,19 +125,25 @@ def get_segmented_sentence(sentence, boundaries):
         pos += 1
     return segmented_line
 
-def bigram_p_word(self, string):
+def bigram_p_word(state, string):
     '''Bigram p_word function for online learning'''
     p = 1
     # Character model
     considered_word = f'<{string:s}>'
     for i in range(len(considered_word) - 1):
         ngram = considered_word[i:(i + 2)]
-        p = p * self.phoneme_ps[ngram]
+        p = p * state.phoneme_ps[ngram]
     return p
 
-def online_learning(data, state, model_name, temp, online):
+def online_learning(data, state, args, temp):
     '''Online learning function'''
     import types
+    model_name = args.model
+    # Online learning parameters
+    online = args.online
+    # Every on_batch sentences, Gibbs sampling on the remaining text.
+    on_batch = args.online_batch
+    on_iter = args.online_iter # Number of iterations
     if online in ['with', 'bigram']:
         update = True
     else:
@@ -126,14 +154,16 @@ def online_learning(data, state, model_name, temp, online):
     if online == 'bigram':
         sup_dictionary = dict()
     update_incr = state.n_utterances / 10
-    for i in range(state.n_utterances):
+    #for i in tqdm(range(1, iters + 1)):
+    logging.info('Online learning:')
+    for i in tqdm(range(state.n_utterances)):
         gold = gold_boundaries[i]
         utterance = state.utterances[i]
         utterance.sample(state, temp)
         segmented = utterance.line_boundaries
         #l = loss(gold, segmented)
         l = count_correction(gold, segmented)
-        print(l)
+        #print(l)
         loss_list.append(l)
         if update: # Update the dictionary
             unsegmented_line = utterance.sentence
@@ -157,15 +187,21 @@ def online_learning(data, state, model_name, temp, online):
                         sup_dictionary[word] = sup_dictionary.get(word, 0) + 1
             # For bigram online learning
             if (i % update_incr == 0) and (online == 'bigram'):
-                print(i, sup_dictionary)
+                #print(i, sup_dictionary)
                 sup = SupervisionHelper(sup_dictionary, 'none', 'none', 'none',
                                         'none')
                 state.phoneme_ps = sup.set_bigram_character_model(state.alphabet)
                 print(f'Sum of probabilities: {sum(state.phoneme_ps.values())}')
                 changeFunction = types.MethodType
                 state.p_word = changeFunction(bigram_p_word, state)
-                t = 'test'
-                print(f'p_word test: {state.p_word(t)}')
+                print(f'p_word test: {state.p_word("test")}')
+            ## Test for on_batch and on_iter
+            if (on_batch > 0) and ((i % on_batch) == 0) and (on_iter > 0):
+                for iter_count in range(on_iter):
+                    #print(iter_count)
+                    for j in range(i + 1, state.n_utterances):
+                        state.utterances[j].sample(state, temp)
+                    check_n_type_token(state, args)
         else:
             pass
     return loss_list
@@ -236,6 +272,9 @@ def main():
     logging.info(f'Sampling {iters:d} iterations.')
     if args.online != 'none':
         logging.info(f'Online learning {args.online} update')
+        if (args.online_batch > 0) and (args.online_iter > 0):
+            logging.info(f' Every {args.online_batch} sentences, '
+                         f'{args.online_iter} iterations.')
 
     logging.info('Evaluating a sample')
 
@@ -262,22 +301,11 @@ def main():
             logging.info(f'iter {i:d}: temp = {temp:.1f}')
 
         main_state.sample(temp)
-        if args.supervision_method in ['naive', 'naive_freq']:
-            pass
-        elif model_name == 'pypseg':
-            utils.check_equality(main_state.restaurant.n_customers,
-                                 sum(main_state.restaurant.customers.values()))
-            utils.check_equality(main_state.restaurant.n_tables,
-                                 sum(main_state.restaurant.tables.values()))
-        else:
-            utils.check_equality(main_state.word_counts.n_types,
-                                 len(main_state.word_counts.lexicon))
-            utils.check_equality(main_state.word_counts.n_tokens,
-                                 sum(main_state.word_counts.lexicon.values()))
+        check_n_type_token(main_state, args)
 
     # Online learning
     if args.online != 'none':
-        loss_list = online_learning(data, main_state, model_name, temp, args.online)
+        loss_list = online_learning(data, main_state, args, temp)
 
     logging.info(f'{iters:d} iterations')
     if model_name == 'pypseg':
@@ -328,7 +356,7 @@ def main():
         out_text.write('Segmented text:\n')
         out_text.write(segmented_text)
         if args.online != 'none':
-            out_text.write('Loss list:\n')
+            out_text.write('\nLoss list:\n')
             out_text.write(str(loss_list))
 
 
