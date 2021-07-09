@@ -10,7 +10,9 @@ from pyseg.dpseg import State
 from pyseg.pypseg import PYPState
 from pyseg.supervised_dpseg import SupervisionHelper, SupervisedState
 from pyseg.supervised_pypseg import SupervisedPYPState
+from pyseg.online import online_learning
 from pyseg.analysis import Statistics, evaluate, get_boundaries
+from pyseg.hyperparameter import Concentration_sampling
 from pyseg import utils
 
 # General setup of libraries
@@ -48,6 +50,8 @@ def parse_args():
                         help='output filename (base)')
     parser.add_argument('-r', '--rnd_seed', default=42, type=int,
                         help='random seed')
+    parser.add_argument('-s', '--sample_hyperparameter', default=False,
+                        type=bool, help='hyperparameter sampling')
 
     # Supervision parameter arguments
     parser.add_argument('--supervision_file', default='none', type=str,
@@ -66,145 +70,17 @@ def parse_args():
                         help='parameter value for boundary supervision')
     parser.add_argument('--online', default='none', type=str,
                         choices=['none', 'without', 'with', 'bigram'],
-                        help='online learning')
+                        help='online learning method')
     parser.add_argument('--online_batch', default=0, type=int,
                         help='number of sentences after which Gibbs sampling '
                         'is carried out for online learning')
     parser.add_argument('--online_iter', default=0, type=int,
                         help='number of iterations for online learning')
 
-    parser.add_argument('--version', action='version', version='1.3.7')
+    parser.add_argument('--version', action='version', version='1.3.9')
 
     return parser.parse_args()
 
-# Checking function
-def check_n_type_token(state, args):
-    '''Check the number of types and tokens after each sampling.'''
-    if args.supervision_method in ['naive', 'naive_freq']:
-        pass
-    elif args.model == 'pypseg': #model_name
-        utils.check_equality(state.restaurant.n_customers,
-                             sum(state.restaurant.customers.values()))
-        utils.check_equality(state.restaurant.n_tables,
-                             sum(state.restaurant.tables.values()))
-    else:
-        utils.check_equality(state.word_counts.n_types,
-                             len(state.word_counts.lexicon))
-        utils.check_equality(state.word_counts.n_tokens,
-                             sum(state.word_counts.lexicon.values()))
-
-# Online learning
-def loss(gold, segmented):
-    '''Loss function to compare boundaries during online learning.'''
-    n = len(gold) # The last boundary is always True
-    utils.check_equality(n + 1, len(segmented))
-    loss = 0
-    for i in range(n):
-        loss += (gold[i] - segmented[i]) ** 2
-    return loss / n
-
-def count_correction(gold, segmented):
-    '''Loss function to compare boundaries during online learning.'''
-    n = len(gold) # The last boundary is always True
-    utils.check_equality(n + 1, len(segmented))
-    count = 0
-    for i in range(n):
-        count += (gold[i] - segmented[i]) ** 2
-    return count
-
-def get_segmented_sentence(sentence, boundaries):
-    '''Get the segmented sentence according to the boundaries.'''
-    segmented_line = []
-    beg = 0
-    pos = 0
-    utils.check_equality(len(sentence), len(boundaries))
-    for boundary in boundaries:
-        if boundary: # If there is a boundary
-            segmented_line.append(sentence[beg:(pos + 1)])
-            beg = pos + 1
-        pos += 1
-    return segmented_line
-
-def bigram_p_word(state, string):
-    '''Bigram p_word function for online learning'''
-    p = 1
-    # Character model
-    considered_word = f'<{string:s}>'
-    for i in range(len(considered_word) - 1):
-        ngram = considered_word[i:(i + 2)]
-        p = p * state.phoneme_ps[ngram]
-    return p
-
-def online_learning(data, state, args, temp):
-    '''Online learning function'''
-    import types
-    model_name = args.model
-    # Online learning parameters
-    online = args.online
-    # Every on_batch sentences, Gibbs sampling on the remaining text.
-    on_batch = args.online_batch
-    on_iter = args.online_iter # Number of iterations
-    if online in ['with', 'bigram']:
-        update = True
-    else:
-        update = False
-    split_gold = utils.text_to_line(data)
-    gold_boundaries = get_boundaries(split_gold)
-    loss_list = []
-    if online == 'bigram':
-        sup_dictionary = dict()
-    update_incr = state.n_utterances / 10
-    #for i in tqdm(range(1, iters + 1)):
-    logging.info('Online learning:')
-    for i in tqdm(range(state.n_utterances)):
-        gold = gold_boundaries[i]
-        utterance = state.utterances[i]
-        utterance.sample(state, temp)
-        segmented = utterance.line_boundaries
-        #l = loss(gold, segmented)
-        l = count_correction(gold, segmented)
-        #print(l)
-        loss_list.append(l)
-        if update: # Update the dictionary
-            unsegmented_line = utterance.sentence
-            segmented_line = get_segmented_sentence(unsegmented_line, segmented)
-            #print('segmented_line', segmented_line)
-            gold_line = utils.line_to_word(split_gold[i])
-            #print('gold line', gold_line)
-            if model_name == 'pypseg':
-                for word in segmented_line:
-                    state.restaurant.remove_customer(word)
-                for word in gold_line:
-                    state.restaurant.add_customer(word)
-                    if online == 'bigram':
-                        sup_dictionary[word] = sup_dictionary.get(word, 0) + 1
-            else:
-                for word in segmented_line:
-                    state.word_counts.remove_one(word)
-                for word in gold_line:
-                    state.word_counts.add_one(word)
-                    if online == 'bigram':
-                        sup_dictionary[word] = sup_dictionary.get(word, 0) + 1
-            # For bigram online learning
-            if (i % update_incr == 0) and (online == 'bigram'):
-                #print(i, sup_dictionary)
-                sup = SupervisionHelper(sup_dictionary, 'none', 'none', 'none',
-                                        'none')
-                state.phoneme_ps = sup.set_bigram_character_model(state.alphabet)
-                print(f'Sum of probabilities: {sum(state.phoneme_ps.values())}')
-                changeFunction = types.MethodType
-                state.p_word = changeFunction(bigram_p_word, state)
-                print(f'p_word test: {state.p_word("test")}')
-            ## Test for on_batch and on_iter
-            if (on_batch > 0) and ((i % on_batch) == 0) and (on_iter > 0):
-                for iter_count in range(on_iter):
-                    #print(iter_count)
-                    for j in range(i + 1, state.n_utterances):
-                        state.utterances[j].sample(state, temp)
-                    check_n_type_token(state, args)
-        else:
-            pass
-    return loss_list
 
 def main():
     args = parse_args()
@@ -226,7 +102,9 @@ def main():
     # No set_models since it doesn't seem to be useful for the unigram case
 
     # Initialisation of the model state
-    if model_name == 'pypseg':
+    if (model_name == 'pypseg') or (args.sample_hyperparameter):
+        if args.sample_hyperparameter:
+            args.discount = 0
         # If supervision
         if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'):
             if args.supervision_file != 'none': #args.supervision_method != 'none':
@@ -265,11 +143,23 @@ def main():
                 supervision_boundary = args.supervision_boundary,
                 supervision_boundary_parameter = args.supervision_boundary_parameter)
         else:
+            #if args.sample_hyperparameter:
+            #    main_state = PYPState(data, discount = 0,
+            #                          alpha_1 = args.alpha_1,
+            #                          p_boundary = args.p_boundary,
+            #                          seed = rnd_seed)
+            #else:
+            #    main_state = State(data, alpha_1 = args.alpha_1,
+            #                       p_boundary = args.p_boundary)
             main_state = State(data, alpha_1 = args.alpha_1,
-                         p_boundary = args.p_boundary)
+                               p_boundary = args.p_boundary)
 
     iters = args.iterations
     logging.info(f'Sampling {iters:d} iterations.')
+    hyp_sample = args.sample_hyperparameter
+    if hyp_sample:
+        logging.info(f' Hyperparameter sampled after each iteration.')
+        alpha_sample = Concentration_sampling((1, 1), rnd_seed)
     if args.online != 'none':
         logging.info(f'Online learning {args.online} update')
         if (args.online_batch > 0) and (args.online_iter > 0):
@@ -299,9 +189,16 @@ def main():
             temp_index += 1
             temp = temperatures[temp_index]
             logging.info(f'iter {i:d}: temp = {temp:.1f}')
+            if hyp_sample:
+                print(f'Current value of alpha: {main_state.alpha_1:.1f}')
 
         main_state.sample(temp)
-        check_n_type_token(main_state, args)
+        utils.check_n_type_token(main_state, args)
+        if hyp_sample:
+            main_state.alpha_1 = alpha_sample.sample_concentration(main_state)
+
+    if hyp_sample:
+        print(f'Final value of alpha: {main_state.alpha_1:.1f}')
 
     # Online learning
     if args.online != 'none':

@@ -43,6 +43,22 @@ def check_equality(value_left, value_right):
         raise ValueError('Both values must be equal; '
                          f'currently {value_left} and {value_right}.')
 
+# Check the number of types and token
+def check_n_type_token(state, args):
+    '''Check the number of types and tokens after each sampling.'''
+    if args.supervision_method in ['naive', 'naive_freq']:
+        pass
+    elif (args.model == 'pypseg') or (args.sample_hyperparameter): #model_name
+        check_equality(state.restaurant.n_customers,
+                       sum(state.restaurant.customers.values()))
+        check_equality(state.restaurant.n_tables,
+                       sum(state.restaurant.tables.values()))
+    else:
+        check_equality(state.word_counts.n_types,
+                       len(state.word_counts.lexicon))
+        check_equality(state.word_counts.n_tokens,
+                       sum(state.word_counts.lexicon.values()))
+
 
 # Other utility functions
 def kdelta(i, j):
