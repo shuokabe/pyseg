@@ -77,7 +77,7 @@ def parse_args():
     parser.add_argument('--online_iter', default=0, type=int,
                         help='number of iterations for online learning')
 
-    parser.add_argument('--version', action='version', version='1.3.9')
+    parser.add_argument('--version', action='version', version='1.3.10')
 
     return parser.parse_args()
 
