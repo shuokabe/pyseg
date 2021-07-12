@@ -113,7 +113,7 @@ class Concentration_sampling:
         # Auxiliary varaible eta
         eta = self.random_gen.beta(state.alpha_1 + 1, n)
         #eta = beta.rvs(state.alpha_1 + 1, n, random_state = self.random_gen)
-        new_a = self.a_prior + k + 1 # Shape parameter
+        new_a = self.a_prior + k - 1 # Shape parameter
         new_b = self.b_prior - math.log(eta) # Scale parameter
         pi_eta = new_a / (new_a + (n * new_b))
         gamma_1 = self.random_gen.gamma(self.a_prior + k, new_b)
