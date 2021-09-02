@@ -180,7 +180,6 @@ class State: # Information on the whole document
 
         ###
         '''
-        segmented_text = ''
         segmented_text_list = []
         utils.check_equality(len(self.utterances), len(self.unsegmented_list))
         for i in range(len(self.utterances)):
@@ -199,8 +198,6 @@ class State: # Information on the whole document
             # Convert list of words into a string sentence
             segmented_line = ' '.join(segmented_line_list)
             segmented_text_list.append(segmented_line)
-            #segmented_text += segmented_line + '\n'
-
         return '\n'.join(segmented_text_list) #segmented_text
 
 

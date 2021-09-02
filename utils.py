@@ -19,6 +19,9 @@ def line_to_word(raw_line):
     '''Split a raw sentence into a list of words (string) according to whitespace.'''
     return re.split(' ', raw_line)
 
+def add_EOS(text_list):
+    '''Add an EOS mark ($) at the end of each sentence.'''
+    return [f'{sentence}$' for sentence in text_list]
 
 # Checking functions
 def check_probability(prob):
@@ -89,3 +92,7 @@ def delete_value_from_vector(vector, value):
 def flatten_2D(list_of_list):
     '''Flatten a 2D list (list of list).'''
     return [element for element_list in list_of_list for element in element_list]
+
+def bigram_list(word_list):
+    '''Create a list of bigrams from a list of unigrams.'''
+    return list(zip(word_list, word_list[1:]))

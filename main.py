@@ -13,6 +13,7 @@ from pyseg.supervised_pypseg import SupervisedPYPState
 from pyseg.online import online_learning
 from pyseg.analysis import Statistics, evaluate, get_boundaries
 from pyseg.hyperparameter import Concentration_sampling
+from pyseg.nhpylm import NHPYLMState
 from pyseg import utils
 
 # General setup of libraries
@@ -37,7 +38,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', type=str, help='path to file')
     parser.add_argument('-m', '--model', default='dpseg', type=str,
-                        choices=['dpseg', 'pypseg'], help='model name')
+                        choices=['dpseg', 'pypseg', 'nhpylm'], help='model name')
     parser.add_argument('-a', '--alpha_1', default=20, type=int,
                         help='concentration parameter for unigram DP')
     parser.add_argument('-b', '--p_boundary', default=0.5, type=float,
@@ -52,6 +53,12 @@ def parse_args():
                         help='random seed')
     parser.add_argument('-s', '--sample_hyperparameter', default=False,
                         type=bool, help='hyperparameter sampling')
+    parser.add_argument('-a2', '--alpha_2', default=-1, type=int,
+                        help='concentration parameter for bigram model')
+    parser.add_argument('-p', '--poisson_parameter', default=0, type=int,
+                        help='parameter for NHPYLM Poisson correction')
+    parser.add_argument('-v', '--verbose', default=False,
+                        type=bool, help='verbosity of the output')
 
     # Supervision parameter arguments
     parser.add_argument('--supervision_file', default='none', type=str,
@@ -103,7 +110,7 @@ def main():
 
     # Initialisation of the model state
     if (model_name == 'pypseg') or (args.sample_hyperparameter):
-        if args.sample_hyperparameter:
+        if model_name == 'dpseg': #args.sample_hyperparameter:
             args.discount = 0
         # If supervision
         if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'):
@@ -125,6 +132,11 @@ def main():
             main_state = PYPState(data, discount = args.discount,
                                alpha_1 = args.alpha_1,
                                p_boundary = args.p_boundary, seed = rnd_seed)
+    elif model_name == 'nhpylm': # NHYPLM model
+        #args.sample_hyperparameter = True
+        main_state = NHPYLMState(data, alpha_1 = args.alpha_1,
+            alpha_2 = args.alpha_2, p_boundary = args.p_boundary,
+            poisson_parameter = args.poisson_parameter)
     else: # Default model: dpseg
         # If supervision
         if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'):
@@ -143,14 +155,6 @@ def main():
                 supervision_boundary = args.supervision_boundary,
                 supervision_boundary_parameter = args.supervision_boundary_parameter)
         else:
-            #if args.sample_hyperparameter:
-            #    main_state = PYPState(data, discount = 0,
-            #                          alpha_1 = args.alpha_1,
-            #                          p_boundary = args.p_boundary,
-            #                          seed = rnd_seed)
-            #else:
-            #    main_state = State(data, alpha_1 = args.alpha_1,
-            #                       p_boundary = args.p_boundary)
             main_state = State(data, alpha_1 = args.alpha_1,
                                p_boundary = args.p_boundary)
 
@@ -209,13 +213,22 @@ def main():
         logging.debug(f'{main_state.restaurant.n_tables} tables')
         #print('Restaurant', main_state.restaurant.restaurant)
 
-    if args.supervision_method in ['naive', 'naive_freq']:
-        if model_name == 'pypseg':
-            print(main_state.restaurant.restaurant)
-        else:
-            print(main_state.word_counts.lexicon)
+    if verbose:
+        if args.supervision_method in ['naive', 'naive_freq']:
+            if (model_name == 'pypseg') or (args.sample_hyperparameter):
+                print(main_state.restaurant.restaurant)
+            else:
+                print(main_state.word_counts.lexicon)
+    else:
+        pass
 
-    segmented_text = main_state.get_segmented()
+    if model_name == 'nhpylm':
+        segmented_text_list = [' '.join(utt.word_list)
+                               for utt in main_state.utterances]
+        segmented_text = '\n'.join(segmented_text_list)
+        segmented_text.replace('$', '')
+    else:
+        segmented_text = main_state.get_segmented()
 
     # Statistics
     stats = Statistics(segmented_text)

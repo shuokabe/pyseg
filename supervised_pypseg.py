@@ -5,7 +5,7 @@ import random
 
 from pyseg import utils
 
-# pypseg model
+# Supervised pypseg model
 
 logging.basicConfig(level = logging.DEBUG, format = '[%(asctime)s] %(message)s',
                     datefmt = '%d/%m/%Y %H:%M:%S')
