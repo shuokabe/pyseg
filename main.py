@@ -213,7 +213,7 @@ def main():
         logging.debug(f'{main_state.restaurant.n_tables} tables')
         #print('Restaurant', main_state.restaurant.restaurant)
 
-    if verbose:
+    if args.verbose:
         if args.supervision_method in ['naive', 'naive_freq']:
             if (model_name == 'pypseg') or (args.sample_hyperparameter):
                 print(main_state.restaurant.restaurant)

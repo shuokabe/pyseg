@@ -103,6 +103,8 @@ class NHPYLMState(State): # Information on the whole document
         if self.poisson_parameter > 0:
             self.poisson = True
             self.poisson_correction() # Length probabilities for Poisson correction
+        else:
+            self.poisson = False
 
     #def init_phoneme_probs(self):
 
