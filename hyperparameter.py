@@ -1,3 +1,4 @@
+import numpy as np
 import math
 import random
 
@@ -98,7 +99,7 @@ class Hyperparameter_sampling:
         '''Sample the concentration parameter alpha (here called theta).'''
         Y = sum(self.y_i_list)
         return self.random_gen.gamma(self.alpha_prior + Y,
-                                     self.beta_prior + self.x)
+                                     self.beta_prior - np.log(self.x))
 
     def sample_discount(self, state):
         '''Sample the discount parameter d.'''
@@ -111,7 +112,7 @@ class Hyperparameter_sampling:
         ##### CHECK CONDITIONS ######
         n, t = state.restaurant.n_customers, state.restaurant.n_tables
         # x
-        self.x = self.random_gen.beta(state.alpha_1 + 1, n)
+        self.x = self.random_gen.beta(state.alpha_1 + 1, n - 1)
         # y_i
         self.y_i_list = []
         for i in range(1, t):

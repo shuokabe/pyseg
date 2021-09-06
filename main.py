@@ -215,9 +215,9 @@ def main():
                     hyperparam_sample.sample_hyperparameter(main_state, dpseg)
 
     if hyp_sample:
-        print(f'Final value of alpha: {main_state.alpha_1:.1f}')
+        logging.debug(f'Final value of alpha: {main_state.alpha_1:.1f}')
         if model_name == 'pypseg':
-            print(f'Final value of d: {main_state.discount:.3f}')
+            logging.debug(f'Final value of d: {main_state.discount:.3f}')
         else:
             pass
 
