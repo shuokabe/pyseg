@@ -258,11 +258,10 @@ class NHPYLMUtterance(Utterance): # Information on one utterance of the document
     def draw_backward(self, word, t, state):
         '''Draw k from the possible values for backward sampling.'''
         drawn_k = 0
-        bigram = state.bigram #
         # Compute the probability for each possible k
         backward_prob_list = []
         for k in range(1, (t + 1)):
-            if bigram:
+            if state.bigram:
                 word_before = self.sentence[(t - k + 1 - 1):t]
                 backward_prob = state.p_bigram(word, word_before) \
                                 * self.forward_alpha[t][k]

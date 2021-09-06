@@ -12,7 +12,7 @@ from pyseg.supervised_dpseg import SupervisionHelper, SupervisedState
 from pyseg.supervised_pypseg import SupervisedPYPState
 from pyseg.online import online_learning
 from pyseg.analysis import Statistics, evaluate, get_boundaries
-from pyseg.hyperparameter import Concentration_sampling
+from pyseg.hyperparameter import Concentration_sampling, Hyperparameter_sampling
 from pyseg.nhpylm import NHPYLMState
 from pyseg import utils
 
@@ -163,7 +163,10 @@ def main():
     hyp_sample = args.sample_hyperparameter
     if hyp_sample:
         logging.info(f' Hyperparameter sampled after each iteration.')
+        # For dpseg only
         alpha_sample = Concentration_sampling((1, 1), rnd_seed)
+        # For both dpseg and pypseg
+        hyperparam_sample = Hyperparameter_sampling((1, 1), (1, 1), rnd_seed)
     if args.online != 'none':
         logging.info(f'Online learning {args.online} update')
         if (args.online_batch > 0) and (args.online_iter > 0):
@@ -195,14 +198,28 @@ def main():
             logging.info(f'iter {i:d}: temp = {temp:.1f}')
             if hyp_sample:
                 print(f'Current value of alpha: {main_state.alpha_1:.1f}')
+                if model_name == 'pypseg':
+                    print(f'Current value of d: {main_state.discount:.3f}')
+                else:
+                    pass
 
         main_state.sample(temp)
         utils.check_n_type_token(main_state, args)
         if hyp_sample:
-            main_state.alpha_1 = alpha_sample.sample_concentration(main_state)
+            #main_state.alpha_1 = alpha_sample.sample_concentration(main_state)
+            if model_name == 'pypseg':
+                dpseg = False
+            else:
+                dpseg = True
+            main_state.alpha_1, main_state.discount = \
+                    hyperparam_sample.sample_hyperparameter(main_state, dpseg)
 
     if hyp_sample:
         print(f'Final value of alpha: {main_state.alpha_1:.1f}')
+        if model_name == 'pypseg':
+            print(f'Final value of d: {main_state.discount:.3f}')
+        else:
+            pass
 
     # Online learning
     if args.online != 'none':
