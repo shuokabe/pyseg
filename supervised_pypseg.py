@@ -24,13 +24,14 @@ class Restaurant(Restaurant):
     def add_naive_word(self, word, sup_parameter):
         '''Assign a word to a table in the restaurant for the naive method.
 
-        A naive word from the supervision dictionary is not a customer.
+        A naive word from the supervision dictionary is not a 'real' customer.
         '''
         if word in self.restaurant.keys(): # Add the word to a table (possibly new)
             self.restaurant[word][0] += sup_parameter # Add to the first table
-
+            self.customers[word] = self.customers.get(word, 0) + sup_parameter
         else: # Open a new table for a new word
             self.restaurant[word] = [sup_parameter]
+            self.customers[word] = sup_parameter
             self.tables[word] = 1
             self.n_tables += 1
 
@@ -218,19 +219,12 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         #print('Restaurant:', self.restaurant.restaurant)
         #logging.debug(f'{self.restaurant.n_tables} tables initially')
 
-        #if self.sup_method == 'naive':
-        #    for word, frequency in self.sup_data.items():
-        #        self.restaurant.add_naive_word(word, self.sup_parameter)
-                #naive_dictionary[word] = self.sup_parameter
-            #print(f'{self.sup_method.capitalize()} restaurant:', self.restaurant)
-
         # Alphabet (list of letters)
         self.alphabet = utils.delete_value_from_vector(list(set(self.unsegmented)), '\n')
         self.alphabet_size = len(self.alphabet)
 
         # Phoneme probability (dictionary)
         self.phoneme_ps = dict()
-        #self.init_probs() # How to initialise the boundaries (here: random)
         self.init_phoneme_probs()
 
         if self.sup_method in ['mixture', 'mixture_bigram']:
@@ -246,8 +240,7 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         if self.sup_method == 'naive':
             for word, frequency in self.sup_data.items():
                 self.restaurant.add_naive_word(word, self.sup_parameter)
-                #naive_dictionary[word] = self.sup_parameter
-            #print(f'{self.sup_method.capitalize()} restaurant:', self.restaurant)
+            #print(f'{self.sup_method.capitalize()} restaurant:', self.restaurant.restaurant)
 
 
     def init_phoneme_probs(self):

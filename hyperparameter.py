@@ -109,13 +109,15 @@ class Hyperparameter_sampling:
 
     def sample_auxiliary(self, state):
         '''Sample auxiliary variable x, y_i, z_wkj.'''
-        ##### CHECK CONDITIONS ######
         n, t = state.restaurant.n_customers, state.restaurant.n_tables
         # x
-        self.x = self.random_gen.beta(state.alpha_1 + 1, n - 1)
+        if n <= 1:
+            self.x = 1
+        else:
+            self.x = self.random_gen.beta(state.alpha_1 + 1, n - 1)
         # y_i
         self.y_i_list = []
-        for i in range(1, t):
+        for i in range(1, t): # if t == 1: y_i_list = []
             y_i = state.alpha_1 / (state.alpha_1 + state.discount * i)
             utils.check_probability(y_i)
             self.y_i_list.append(self.random_gen.binomial(1, y_i))
@@ -126,7 +128,9 @@ class Hyperparameter_sampling:
             # Check each table with word label w
             for c_wk in table_w_list:
                 if c_wk >= 2:
-                    for j in range(1, c_wk):
+                    for j in range(1, int(c_wk)):
                         z_wkj = (j - 1) / (j - state.discount)
                         utils.check_probability(z_wkj)
                         self.z_wkj_list.append(self.random_gen.binomial(1, z_wkj))
+                else:
+                    pass

@@ -326,6 +326,10 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
         yes = yes / (yes + no)
         no = 1 - yes
 
+        #if (yes < 0) or (no < 0): # Invalid value test
+            #print(f'yes is negative: {yes}')
+            #print(f' right: {right}, left: {left}, centre: {centre}')
+            #print(f'or no is negative: {no}')
         # Annealing
         yes = yes ** temp
         #print('yes temp: ', yes)
