@@ -79,7 +79,7 @@ class Restaurant(Restaurant):
         '''Remove a customer (word) from a table and close it if necessary.'''
         n_table_word = self.tables.get(word, [])
         if (n_table_word == 0):
-            raise KeyError('There is no table with the word label %s.' % word)
+            raise KeyError(f'There is no table with the word label {word}.')
         elif (n_table_word == 1): # Only one table
             self.restaurant[word][0] += -1
             self.customers[word] += -1

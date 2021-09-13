@@ -205,6 +205,7 @@ def main():
 
         main_state.sample(temp)
         utils.check_n_type_token(main_state, args)
+        # Hyperparameter sampling
         if hyp_sample:
             #main_state.alpha_1 = alpha_sample.sample_concentration(main_state)
             if model_name == 'pypseg':

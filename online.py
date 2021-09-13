@@ -108,7 +108,7 @@ def online_learning(data, state, args, temp):
             #print('segmented_line', segmented_line)
             gold_line = utils.line_to_word(split_gold[i])
             #print('gold line', gold_line)
-            if model_name == 'pypseg':
+            if (model_name == 'pypseg') or (args.sample_hyperparameter):
                 for word in segmented_line:
                     state.restaurant.remove_customer(word)
                 for word in gold_line:
