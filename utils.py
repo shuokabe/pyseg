@@ -96,3 +96,10 @@ def flatten_2D(list_of_list):
 def bigram_list(word_list):
     '''Create a list of bigrams from a list of unigrams.'''
     return list(zip(word_list, word_list[1:]))
+
+def morpheme_gold_segment(text, morpheme=False):
+    '''Segment the gold text into word or morpheme level.'''
+    if morpheme: # Morpheme level segmentation
+        return re.sub('-', ' ', text)
+    else: # Word level segmentation
+        return re.sub('-', '', text)

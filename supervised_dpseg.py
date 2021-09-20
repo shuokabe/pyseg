@@ -21,28 +21,32 @@ class SupervisionHelper():
                  supervision_parameter=0, supervision_boundary='none',
                  supervision_boundary_parameter=0):
         # Supervision variable
-        self.sup_data = supervision_data # dictionary or text file
-        self.sup_method = supervision_method
-        self.sup_parameter = supervision_parameter
-        self.sup_boundary_method = supervision_boundary
-        self.sup_boundary_parameter = supervision_boundary_parameter
+        self.data = supervision_data # dictionary or text file
+        self.method = supervision_method
+        self.parameter = supervision_parameter
+        self.boundary_method = supervision_boundary
+        self.boundary_parameter = supervision_boundary_parameter
 
-        if self.sup_method != 'none': # Dictionary supervision
+        # Two-level segmentation (morpheme)
+        if self.boundary_method == 'morpheme':
+            self.boundary_parameter = 1.0
+
+        if self.method != 'none': # Dictionary supervision
             logging.info('Supervision with a dictionary')
-            logging.info(f' Supervision method: {self.sup_method:s}, '
-                         f'supervision parameter: {self.sup_parameter:.2f}')
-        if self.sup_boundary_method != 'none': # Boundary supervision
+            logging.info(f' Supervision method: {self.method:s}, '
+                         f'supervision parameter: {self.parameter:.2f}')
+        if self.boundary_method != 'none': # Boundary supervision
             logging.info('Supervision with segmentation boundaries')
-            logging.info(f' Boundary supervision method: {self.sup_boundary_method:s}, '
-                         f'boundary supervision parameter: {self.sup_boundary_parameter:.2f}')
+            logging.info(f' Boundary supervision method: {self.boundary_method:s}, '
+                         f'boundary supervision parameter: {self.boundary_parameter:.2f}')
 
 
     def set_ngram_character_model(self, state_alphabet):
         # Supervision with a dictionary
         logging.info('Phoneme distribution: dictionary supervision')
-        if self.sup_method in ['init_bigram', 'mixture_bigram']:
+        if self.method in ['init_bigram', 'mixture_bigram']:
             chosen_method = 'bigram'
-        elif self.sup_method == 'init_trigram':
+        elif self.method == 'init_trigram':
             chosen_method = 'trigram'
         else: # chosen_method here: 'bigram' and 'trigram'
             pass
@@ -50,7 +54,7 @@ class SupervisionHelper():
 
         # Create the bigram distirbution dictionary
         ngrams_in_dict_list = [] # List of ngrams in the supervision data
-        for word in self.sup_data.keys():
+        for word in self.data.keys():
             considered_word = f'<{word:s}>'
             if chosen_method == 'bigram':
                 word_ngram_list = [considered_word[i:(i + 2)]
@@ -94,7 +98,7 @@ class SupervisionHelper():
     def set_bigram_character_model(self, state_alphabet):
         # Create the bigram distirbution dictionary
         ngrams_in_dict_list = [] # List of ngrams in the supervision data
-        for word in self.sup_data.keys():
+        for word in self.data.keys():
             considered_word = f'<{word:s}>'
             word_ngram_list = [considered_word[i:(i + 2)]
                                for i in range(len(considered_word) - 1)]
@@ -146,17 +150,11 @@ class SupervisedState(State): # Information on the whole document
         self.sup_boundary_method = supervision_boundary
         self.sup_boundary_parameter = supervision_boundary_parameter
 
-        #if self.sup_method != 'none': # Dictionary supervision
-        #    logging.info('Supervision with a dictionary')
-        #    logging.info(f' Supervision method: {self.sup_method:s}, '
-        #                 f'supervision parameter: {self.sup_parameter:.2f}')
-        #if self.sup_boundary_method != 'none': # Boundary supervision
-        #    logging.info('Supervision with segmentation boundaries')
-        #    logging.info(f' Boundary supervision method: {self.sup_boundary_method:s}, '
-        #                 f'boundary supervision parameter: {self.sup_boundary_parameter:.2f}')
+        # Supervision helper
         self.sup = SupervisionHelper(supervision_data,
                      supervision_method, supervision_parameter,
                      supervision_boundary, supervision_boundary_parameter)
+        self.sup_boundary_parameter = self.sup.boundary_parameter
 
         # Data and Utterance object
         self.unsegmented = utils.unsegmented(data)
@@ -165,35 +163,35 @@ class SupervisedState(State): # Information on the whole document
         # Variable to store alphabet, utterance, and lexicon information
         self.utterances = [] # Stored Utterance objects
 
-        if self.sup_boundary_method != 'none': # Boundary supervision
+        if self.sup.boundary_method != 'none': # Boundary supervision
             self.sup_boundaries = [] # Stored supervision boundaries
             sup_data_list = utils.text_to_line(data)
             utils.check_equality(len(self.unsegmented_list), len(sup_data_list))
 
             supervision_bool = False
-            if self.sup_boundary_method == 'sentence':
+            if self.sup.boundary_method == 'sentence':
                 supervision_bool = True
-                if self.sup_boundary_parameter < 1: # Ratio case
-                    supervision_index = int(np.ceil(self.sup_boundary_parameter \
+                if self.sup.boundary_parameter < 1: # Ratio case
+                    supervision_index = int(np.ceil(self.sup.boundary_parameter \
                                             * len(self.unsegmented_list)))
                     print('Supervision index:', supervision_index)
                 else: # Index case
-                    supervision_index = self.sup_boundary_parameter
+                    supervision_index = self.sup.boundary_parameter
             for i in range(len(self.unsegmented_list)): # rewrite with correct variable names
-                if (self.sup_boundary_method == 'sentence') \
+                if (self.sup.boundary_method == 'sentence') \
                     and (i >= supervision_index): # End of supervision
                     supervision_bool = False
                 unseg_line = self.unsegmented_list[i]
                 sup_line = sup_data_list[i]
-                if self.sup_boundary_method == 'word':
+                if self.sup.boundary_method == 'word':
                     utterance = SupervisedUtterance(
                         unseg_line, sup_line, self.p_boundary, random_gen_sup,
-                        self.sup_boundary_method, self.sup_boundary_parameter,
-                        sup_data = self.sup_data)
+                        self.sup.boundary_method, self.sup.boundary_parameter,
+                        sup_data = self.sup.data)
                 else:
                     utterance = SupervisedUtterance(
                         unseg_line, sup_line, self.p_boundary, random_gen_sup,
-                        self.sup_boundary_method, self.sup_boundary_parameter,
+                        self.sup.boundary_method, self.sup.boundary_parameter,
                         supervision_bool)
                 self.utterances.append(utterance)
                 self.sup_boundaries.append(utterance.sup_boundaries)
@@ -219,16 +217,16 @@ class SupervisedState(State): # Information on the whole document
         init_segmented_list = utils.text_to_line(self.get_segmented())
         self.word_counts.init_lexicon_text(init_segmented_list)
 
-        if self.sup_method in ['naive', 'naive_freq']:
+        if self.sup.method in ['naive', 'naive_freq']:
             naive_dictionary = dict()
-            for word, frequency in self.sup_data.items():
-                if self.sup_method == 'naive':
-                    naive_dictionary[word] = self.sup_parameter
+            for word, frequency in self.sup.data.items():
+                if self.sup.method == 'naive':
+                    naive_dictionary[word] = self.sup.parameter
                 else: #self.sup_method == 'naive_freq':
-                    naive_dictionary[word] = frequency * self.sup_parameter
+                    naive_dictionary[word] = frequency * self.sup.parameter
             self.word_counts.lexicon = self.word_counts.lexicon \
                                        + collections.Counter(naive_dictionary)
-            print(f'{self.sup_method.capitalize()} dictionary:', self.word_counts.lexicon)
+            print(f'{self.sup.method.capitalize()} dictionary:', self.word_counts.lexicon)
 
         # Alphabet (list of letters)
         self.alphabet = utils.delete_value_from_vector(list(set(self.unsegmented)), '\n')
@@ -237,15 +235,15 @@ class SupervisedState(State): # Information on the whole document
         # Phoneme probability (dictionary)
         self.phoneme_ps = dict()
 
-        if self.sup_method in ['initialise', 'init_bigram', 'init_trigram']:
+        if self.sup.method in ['initialise', 'init_bigram', 'init_trigram']:
             self.word_length_ps = dict() # Exclusive to the dictionary initialise method
 
         #self.init_probs() # How to initialise the boundaries (here: random)
         self.init_phoneme_probs()
 
-        if self.sup_method in ['mixture', 'mixture_bigram']:
+        if self.sup.method in ['mixture', 'mixture_bigram']:
             # Total number of words in the supervision dictionary
-            self.n_words_sup = sum(self.sup_data.values())
+            self.n_words_sup = sum(self.sup.data.values())
 
 
     def init_phoneme_probs(self):
@@ -255,7 +253,7 @@ class SupervisedState(State): # Information on the whole document
         '''
         # Skip part to calculate the true distribution of characters
 
-        if self.sup_method == 'initialise':
+        if self.sup.method == 'initialise':
             # Supervision with a dictionary
             logging.info('Phoneme distribution: dictionary supervision')
 
@@ -264,7 +262,7 @@ class SupervisedState(State): # Information on the whole document
 
             words_in_dict_str = ''
             word_length_dict = dict()
-            for word, frequency in self.sup_data.items():
+            for word, frequency in self.sup.data.items():
                 words_in_dict_str += word #* frequency # For letter probabilities
                 word_length = len(word)
                 word_length_dict.setdefault(word_length, 0)
@@ -303,7 +301,7 @@ class SupervisedState(State): # Information on the whole document
             #        'The sum of the probabilities is not 1.'
             print(f'Sum of probabilities: {sum(self.phoneme_ps.values())}')
 
-        elif self.sup_method in ['init_bigram', 'init_trigram', 'mixture_bigram']:
+        elif self.sup.method in ['init_bigram', 'init_trigram', 'mixture_bigram']:
             self.phoneme_ps = self.sup.set_ngram_character_model(self.alphabet)
 
             print(f'Sum of probabilities: {sum(self.phoneme_ps.values())}')
@@ -326,10 +324,10 @@ class SupervisedState(State): # Information on the whole document
         '''
         p = 1
         # Character model
-        if self.sup_method in ['init_bigram', 'init_trigram', 'mixture_bigram']:
-            if self.sup_method in ['init_bigram', 'mixture_bigram']:
+        if self.sup.method in ['init_bigram', 'init_trigram', 'mixture_bigram']:
+            if self.sup.method in ['init_bigram', 'mixture_bigram']:
                 n_ngram = 2
-            elif self.sup_method == 'init_trigram':
+            elif self.sup.method == 'init_trigram':
                 n_ngram = 3
             else:
                 pass
@@ -340,20 +338,20 @@ class SupervisedState(State): # Information on the whole document
         else: # Unigram case
             for letter in string:
                 p = p * self.phoneme_ps[letter]
-            if self.sup_method != 'initialise':
+            if self.sup.method != 'initialise':
                 p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
         #p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
 
-        if self.sup_method in ['mixture', 'mixture_bigram']:
+        if self.sup.method in ['mixture', 'mixture_bigram']:
             #print('p before mixture:', p)
             #n_words_dict = sum(self.sup_data.values())
             #p = self.sup_parameter / n_words_dict * utils.indicator(string, self.sup_data) \
             #    + (1 - self.sup_parameter) * p
-            p = (1 - self.sup_parameter) * p
-            p += (self.sup_parameter / self.n_words_sup) \
-                  * utils.indicator(string, self.sup_data)
+            p = (1 - self.sup.parameter) * p
+            p += (self.sup.parameter / self.n_words_sup) \
+                  * utils.indicator(string, self.sup.data)
             #print('p after mixture:', p)
-        elif self.sup_method == 'initialise': # Explicit length model
+        elif self.sup.method == 'initialise': # Explicit length model
             #print('p before length:', p)
             p = p * self.word_length_ps.get(len(string), 10 ** (-5))
             #print('p after length:', p)
@@ -388,7 +386,7 @@ class SupervisedUtterance(Utterance):
 
         self.sup_boundaries = []
         if (self.sup_boundary_method == 'sentence') and not supervision_bool:
-            self.sup_boundaries  = [-1] * (len(self.sentence))
+            self.sup_boundaries = [-1] * (len(self.sentence))
         elif (self.sup_boundary_method == 'word'):
             self.sup_data = sup_data
             self.init_word_sup_boundaries()
@@ -423,7 +421,7 @@ class SupervisedUtterance(Utterance):
                 self.sup_boundaries.append(1)
                 boundary_track += 1
             else: # No boundary case
-                if self.sup_boundary_method == 'true':
+                if self.sup_boundary_method in ['true', 'morpheme']:
                     self.sup_boundaries.append(-1)
                 else:
                     self.sup_boundaries.append(0)

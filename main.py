@@ -71,7 +71,8 @@ def parse_args():
     parser.add_argument('--supervision_parameter', default=0, type=float,
                         help='parameter value for (dictionary) supervision')
     parser.add_argument('--supervision_boundary', default='none', type=str,
-                        choices=['none', 'true', 'random', 'sentence', 'word'],
+                        choices=['none', 'true', 'random', 'sentence', 'word',
+                        'morpheme'],
                         help='boundary supervision method')
     parser.add_argument('--supervision_boundary_parameter', default=0, type=float,
                         help='parameter value for boundary supervision')
@@ -107,6 +108,10 @@ def main():
 
     #set_init(b_init) # Copy from segment.cc
     # No set_models since it doesn't seem to be useful for the unigram case
+
+    if (args.supervision_boundary == 'morpheme'): # Two-level segmentation
+        raw_data = open(filename, 'r', encoding = 'utf8').read()
+        data = utils.morpheme_gold_segment(raw_data, False) # Word level
 
     # Initialisation of the model state
     if (model_name == 'pypseg') or (args.sample_hyperparameter):
@@ -208,10 +213,11 @@ def main():
         # Hyperparameter sampling
         if hyp_sample:
             #main_state.alpha_1 = alpha_sample.sample_concentration(main_state)
-            if model_name == 'pypseg':
-                dpseg = False
-            else:
-                dpseg = True
+            dpseg = bool(model_name == 'pypseg') # dpseg or pypseg model?
+            #if model_name == 'pypseg':
+            #    dpseg = False
+            #else:
+            #    dpseg = True
             main_state.alpha_1, main_state.discount = \
                     hyperparam_sample.sample_hyperparameter(main_state, dpseg)
 
@@ -254,6 +260,9 @@ def main():
     logging.info('Statistics: %s' % (stats.stats))
 
     # Evaluation results
+    if (args.supervision_boundary == 'morpheme'): # Two-level segmentation
+        raw_data = open(filename, 'r', encoding = 'utf8').read()
+        data = utils.morpheme_gold_segment(raw_data, True) # Morpheme level
     results = evaluate(data, segmented_text)
     logging.info('Evaluation metrics: %s' % results)
 
