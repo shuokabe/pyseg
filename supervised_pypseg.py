@@ -48,7 +48,8 @@ class Restaurant(Restaurant):
                 n_tables_w = self.tables[word]
                 random_value = self.random_gen.random()
                 #new_customer = random_value * (n_customers_w + self.alpha_1)
-                new_customer = random_value * self.phi(word) #* (n_customers_w + self.alpha_1 \
+                new_customer = random_value * self.phi(word)
+                #* (n_customers_w + self.alpha_1 \
                    #+ self.discount * (self.n_tables - n_tables_w))
                 utils.check_equality(self.tables[word], len(self.restaurant[word]))
                 if (new_customer > (n_customers_w - (self.discount * n_tables_w))):
@@ -130,8 +131,8 @@ class SupervisedPYPState(PYPState): # Information on the whole document
 
         self.beta = 2 # Hyperparameter?
 
-        logging.info(f' discount: {self.discount:.1f}, '
-                     f'alpha_1: {self.alpha_1:d}, p_boundary: {self.p_boundary:.1f}')
+        logging.info(f' discount: {self.discount:.1f}, alpha_1: '
+                     f'{self.alpha_1:d}, p_boundary: {self.p_boundary:.1f}')
 
         self.seed = seed
         random_gen_sup = random.Random(self.seed)
@@ -210,8 +211,6 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         # Restaurant object to count the number of tables (dict)
         #self.restaurant = Restaurant(self.alpha_1, self.discount, self.seed)
         #self.restaurant.init_tables(init_segmented_list)
-        #print('Restaurant:', self.restaurant.restaurant)
-        #logging.debug(f'{self.restaurant.n_tables} tables initially')
 
         # Alphabet (list of letters)
         self.alphabet = utils.delete_value_from_vector(list(set(self.unsegmented)), '\n')
@@ -288,9 +287,6 @@ class SupervisedPYPState(PYPState): # Information on the whole document
 
         if self.sup.method in ['mixture', 'mixture_bigram']:
             #print('p before mixture:', p)
-            #n_words_dict = sum(self.sup_data.values())
-            #p = self.sup_parameter / n_words_dict * utils.indicator(string, self.sup_data) \
-            #+ (1 - self.sup_parameter) * p
             p = (1 - self.sup.parameter) * p
             p += (self.sup.parameter / self.n_words_sup) \
                   * utils.indicator(string, self.sup.data)

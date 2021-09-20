@@ -213,7 +213,7 @@ def main():
         # Hyperparameter sampling
         if hyp_sample:
             #main_state.alpha_1 = alpha_sample.sample_concentration(main_state)
-            dpseg = bool(model_name == 'pypseg') # dpseg or pypseg model?
+            dpseg = bool(model_name == 'dpseg') # dpseg or pypseg model?
             #if model_name == 'pypseg':
             #    dpseg = False
             #else:

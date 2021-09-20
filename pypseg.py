@@ -179,8 +179,8 @@ class PYPState(State): # Information on the whole document
 
         self.beta = 2 # Hyperparameter?
 
-        logging.info(f' discount: {self.discount:.1f}, '
-                     f'alpha_1: {self.alpha_1:d}, p_boundary: {self.p_boundary:.1f}')
+        logging.info(f' discount: {self.discount:.1f}, alpha_1: '
+                     f'{self.alpha_1:d}, p_boundary: {self.p_boundary:.1f}')
 
         self.seed = seed
 
@@ -207,7 +207,6 @@ class PYPState(State): # Information on the whole document
         #self.restaurant = Restaurant(self.alpha_1, self.discount, self, self.seed)
         #self.restaurant.init_tables(init_segmented_list)
         #print('Restaurant:', self.restaurant.restaurant)
-        #logging.debug(f'{self.restaurant.n_tables} tables initially')
 
         # Alphabet (list of letters)
         self.alphabet = utils.delete_value_from_vector(list(set(self.unsegmented)), '\n')

@@ -124,7 +124,7 @@ class SupervisionHelper():
                         / (letters_in_dict[ngram[0]] + smooth_denominator)
         #print('Ngram dictionary: {0}'.format(self.phoneme_ps))
         return phoneme_ps
-
+        
 
 # Unigram case
 class SupervisedState(State): # Information on the whole document
