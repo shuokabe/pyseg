@@ -123,7 +123,7 @@ def online_learning(data, state, args, temp):
                     if online == 'bigram':
                         sup_dictionary[word] = sup_dictionary.get(word, 0) + 1
             # For bigram online learning
-            if (i % update_incr == 0) and (online == 'bigram'):
+            if ((i + 1) % update_incr == 0) and (online == 'bigram'):
                 #print(i, sup_dictionary)
                 sup = SupervisionHelper(sup_dictionary, 'none', 'none', 'none',
                                         'none')

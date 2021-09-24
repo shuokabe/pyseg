@@ -124,13 +124,14 @@ class SupervisionHelper():
                         / (letters_in_dict[ngram[0]] + smooth_denominator)
         #print('Ngram dictionary: {0}'.format(self.phoneme_ps))
         return phoneme_ps
-        
+
 
 # Unigram case
 class SupervisedState(State): # Information on the whole document
-    def __init__(self, data, alpha_1, p_boundary, seed=42, supervision_data=None,
-                 supervision_method='none', supervision_parameter=0,
-                 supervision_boundary='none', supervision_boundary_parameter=0):
+    def __init__(self, data, alpha_1, p_boundary, seed=42, #supervision_data=None,
+                 #supervision_method='none', supervision_parameter=0,
+                 #supervision_boundary='none', supervision_boundary_parameter=0):
+                 supervision_helper=None):
         # State parameters
         self.alpha_1 = alpha_1
         self.p_boundary = p_boundary
@@ -144,17 +145,18 @@ class SupervisedState(State): # Information on the whole document
         random_gen_sup = random.Random(self.seed)
 
         # Supervision variable
-        self.sup_data = supervision_data # dictionary or text file
-        self.sup_method = supervision_method
-        self.sup_parameter = supervision_parameter
-        self.sup_boundary_method = supervision_boundary
-        self.sup_boundary_parameter = supervision_boundary_parameter
+        #self.sup_data = supervision_data # dictionary or text file
+        #self.sup_method = supervision_method
+        #self.sup_parameter = supervision_parameter
+        #self.sup_boundary_method = supervision_boundary
+        #self.sup_boundary_parameter = supervision_boundary_parameter
 
         # Supervision helper
-        self.sup = SupervisionHelper(supervision_data,
-                     supervision_method, supervision_parameter,
-                     supervision_boundary, supervision_boundary_parameter)
-        self.sup_boundary_parameter = self.sup.boundary_parameter
+        #self.sup = SupervisionHelper(supervision_data,
+        #             supervision_method, supervision_parameter,
+        #             supervision_boundary, supervision_boundary_parameter)
+        #self.sup_boundary_parameter = self.sup.boundary_parameter
+        self.sup = supervision_helper
 
         # Data and Utterance object
         self.unsegmented = utils.unsegmented(data)

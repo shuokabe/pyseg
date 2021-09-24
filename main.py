@@ -85,7 +85,7 @@ def parse_args():
     parser.add_argument('--online_iter', default=0, type=int,
                         help='number of iterations for online learning')
 
-    parser.add_argument('--version', action='version', version='1.3.10')
+    parser.add_argument('--version', action='version', version='1.3.13')
 
     return parser.parse_args()
 
@@ -113,26 +113,42 @@ def main():
         raw_data = open(filename, 'r', encoding = 'utf8').read()
         data = utils.morpheme_gold_segment(raw_data, False) # Word level
 
+    supervision = False
+    # If supervision
+    if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'):
+        supervision = True
+        if args.supervision_file != 'none': #args.supervision_method != 'none':
+            with open(args.supervision_file, 'rb') as d:
+                supervision_data = pickle.load(d)
+        else:
+            supervision_data = 'none'
+            #open(args.supervision_file, 'r', encoding = 'utf8').read()
+        supervision_helper = SupervisionHelper(supervision_data,
+            args.supervision_method, args.supervision_parameter,
+            args.supervision_boundary, args.supervision_boundary_parameter)
+
     # Initialisation of the model state
     if (model_name == 'pypseg') or (args.sample_hyperparameter):
         if model_name == 'dpseg': #args.sample_hyperparameter:
             args.discount = 0
         # If supervision
-        if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'):
-            if args.supervision_file != 'none': #args.supervision_method != 'none':
-                with open(args.supervision_file, 'rb') as d:
-                    supervision_data = pickle.load(d)
-            else:
-                supervision_data = 'none'
+        if supervision:
+        #if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'):
+            #if args.supervision_file != 'none': #args.supervision_method != 'none':
+            #    with open(args.supervision_file, 'rb') as d:
+            #        supervision_data = pickle.load(d)
+            #else:
+            #    supervision_data = 'none'
                 #open(args.supervision_file, 'r', encoding = 'utf8').read()
             main_state = SupervisedPYPState(
                 data, discount = args.discount, alpha_1 = args.alpha_1,
                 p_boundary = args.p_boundary, seed = rnd_seed,
-                supervision_data = supervision_data,
-                supervision_method = args.supervision_method,
-                supervision_parameter = args.supervision_parameter,
-                supervision_boundary = args.supervision_boundary,
-                supervision_boundary_parameter = args.supervision_boundary_parameter)
+                #supervision_data = supervision_data,
+                #supervision_method = args.supervision_method,
+                #supervision_parameter = args.supervision_parameter,
+                #supervision_boundary = args.supervision_boundary,
+                #supervision_boundary_parameter = args.supervision_boundary_parameter)
+                supervision_helper = supervision_helper)
         else:
             main_state = PYPState(data, discount = args.discount,
                                alpha_1 = args.alpha_1,
@@ -144,21 +160,23 @@ def main():
             poisson_parameter = args.poisson_parameter)
     else: # Default model: dpseg
         # If supervision
-        if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'):
-            if args.supervision_file != 'none': #args.supervision_method != 'none':
-                with open(args.supervision_file, 'rb') as d:
-                    supervision_data = pickle.load(d)
-            else:
-                supervision_data = 'none'
+        if supervision:
+        #if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'):
+        #    if args.supervision_file != 'none': #args.supervision_method != 'none':
+        #        with open(args.supervision_file, 'rb') as d:
+        #            supervision_data = pickle.load(d)
+        #    else:
+        #        supervision_data = 'none'
                 #open(args.supervision_file, 'r', encoding = 'utf8').read()
             main_state = SupervisedState(
                 data, alpha_1 = args.alpha_1,
                 p_boundary = args.p_boundary, seed = rnd_seed,
-                supervision_data = supervision_data,
-                supervision_method = args.supervision_method,
-                supervision_parameter = args.supervision_parameter,
-                supervision_boundary = args.supervision_boundary,
-                supervision_boundary_parameter = args.supervision_boundary_parameter)
+                #supervision_data = supervision_data,
+                #supervision_method = args.supervision_method,
+                #supervision_parameter = args.supervision_parameter,
+                #supervision_boundary = args.supervision_boundary,
+                #supervision_boundary_parameter = args.supervision_boundary_parameter)
+                supervision_helper = supervision_helper)
         else:
             main_state = State(data, alpha_1 = args.alpha_1,
                                p_boundary = args.p_boundary)
