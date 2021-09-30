@@ -90,7 +90,7 @@ def online_learning(data, state, args, temp):
     loss_list = []
     if online == 'bigram':
         sup_dictionary = dict()
-    update_incr = state.n_utterances / 10
+    update_incr = state.n_utterances // 10
     #for i in tqdm(range(1, iters + 1)):
     logging.info('Online learning:')
     for i in tqdm(range(state.n_utterances)):

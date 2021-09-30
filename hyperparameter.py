@@ -8,6 +8,7 @@ from scipy.stats import beta, gamma
 
 from pyseg import utils
 
+
 class Concentration_sampling:
     def __init__(self, prior, seed=42):
         '''Object to ease sampling the concentration parameter.
@@ -52,7 +53,7 @@ class Concentration_sampling:
 
 
 class Hyperparameter_sampling:
-    def __init__(self, theta_prior, d_prior, seed=42):
+    def __init__(self, theta_prior, d_prior, seed=42, dpseg=False):
         '''Object to ease hyperparameter sampling.
 
         Hyperparameters: concentration parameter and discount parameter.
@@ -65,6 +66,8 @@ class Hyperparameter_sampling:
             Beta prior (a, b) for the discount parameter
         seed : integer
             Seed value to generate random values (exclusive to this object)
+        dpseg : bool
+            Bool to indicate the model type (dpseg or pypseg)
 
         Attributes
         ----------
@@ -78,18 +81,21 @@ class Hyperparameter_sampling:
             Beta prior (b) for the discount parameter (d)
         random_gen : default_rng()
             Random number generator for the scipy random variables
+        dpseg : bool
+            Bool to indicate the model type (dpseg or pypseg)
 
         '''
         self.alpha_prior, self.beta_prior = theta_prior
         self.a_prior, self.b_prior = d_prior
         #self.random_gen = default_rng(seed)
         self.random_gen = RandomState(seed) # Legacy Random Generation
+        self.dpseg = dpseg
 
-    def sample_hyperparameter(self, state, dpseg=False):
+    def sample_hyperparameter(self, state):
         '''Sample the hyperparameters.'''
         self.sample_auxiliary(state)
         concentration = self.sample_concentration(state)
-        if dpseg: # dpseg model, i.e. discount == 0
+        if self.dpseg: # dpseg model, i.e. discount == 0
             return concentration, 0
         else: # Other models
             discount = self.sample_discount(state)

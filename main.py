@@ -14,6 +14,7 @@ from pyseg.online import online_learning
 from pyseg.analysis import Statistics, evaluate, get_boundaries
 from pyseg.hyperparameter import Concentration_sampling, Hyperparameter_sampling
 from pyseg.nhpylm import NHPYLMState
+from pyseg.two_level import TwoLevelState
 from pyseg import utils
 
 # General setup of libraries
@@ -38,7 +39,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', type=str, help='path to file')
     parser.add_argument('-m', '--model', default='dpseg', type=str,
-                        choices=['dpseg', 'pypseg', 'nhpylm'], help='model name')
+                        choices=['dpseg', 'pypseg', 'nhpylm', 'two_level'], help='model name')
     parser.add_argument('-a', '--alpha_1', default=20, type=int,
                         help='concentration parameter for unigram DP')
     parser.add_argument('-b', '--p_boundary', default=0.5, type=float,
@@ -158,6 +159,11 @@ def main():
         main_state = NHPYLMState(data, alpha_1 = args.alpha_1,
             alpha_2 = args.alpha_2, p_boundary = args.p_boundary,
             poisson_parameter = args.poisson_parameter)
+    elif model_name == 'two_level':
+        main_state = TwoLevelState(data, discount = args.discount,
+            alpha_1 = args.alpha_1, p_boundary = args.p_boundary,
+            seed = rnd_seed)
+            # Built-in hyperparameter sampling
     else: # Default model: dpseg
         # If supervision
         if supervision:
@@ -183,13 +189,17 @@ def main():
 
     iters = args.iterations
     logging.info(f'Sampling {iters:d} iterations.')
+
+    # Hyperparameter sampling initialisation
     hyp_sample = args.sample_hyperparameter
     if hyp_sample:
-        logging.info(f' Hyperparameter sampled after each iteration.')
+        logging.info(' Hyperparameter sampled after each iteration.')
+        dpseg = bool(model_name == 'dpseg') # dpseg or pypseg model?
         # For dpseg only
         alpha_sample = Concentration_sampling((1, 1), rnd_seed)
         # For both dpseg and pypseg
-        hyperparam_sample = Hyperparameter_sampling((1, 1), (1, 1), rnd_seed)
+        hyperparam_sample = Hyperparameter_sampling((1, 1), (1, 1),
+                                                    rnd_seed, dpseg)
     if args.online != 'none':
         logging.info(f'Online learning {args.online} update')
         if (args.online_batch > 0) and (args.online_iter > 0):
@@ -227,17 +237,15 @@ def main():
                     pass
 
         main_state.sample(temp)
-        utils.check_n_type_token(main_state, args)
+        if model_name != 'two_level':
+            utils.check_n_type_token(main_state, args)
+        else:
+            pass
         # Hyperparameter sampling
         if hyp_sample:
             #main_state.alpha_1 = alpha_sample.sample_concentration(main_state)
-            dpseg = bool(model_name == 'dpseg') # dpseg or pypseg model?
-            #if model_name == 'pypseg':
-            #    dpseg = False
-            #else:
-            #    dpseg = True
             main_state.alpha_1, main_state.discount = \
-                    hyperparam_sample.sample_hyperparameter(main_state, dpseg)
+                    hyperparam_sample.sample_hyperparameter(main_state)
 
     if hyp_sample:
         logging.debug(f'Final value of alpha: {main_state.alpha_1:.1f}')
@@ -269,6 +277,31 @@ def main():
                                for utt in main_state.utterances]
         segmented_text = '\n'.join(segmented_text_list)
         segmented_text.replace('$', '')
+    elif model_name == 'two_level':
+        word_segmented_text = main_state.word_state.get_segmented()
+        morph_segmented_text = main_state.morph_state.get_segmented()
+        stats_word = Statistics(word_segmented_text)
+        stats_morph = Statistics(morph_segmented_text)
+        #print('State and stats:', main_state.word_counts.lexicon == stats.lexicon)
+        logging.info('Word statistics: %s' % (stats_word.stats))
+        logging.info('Morph statistics: %s' % (stats_morph.stats))
+
+        word_results = evaluate(main_state.data_word, word_segmented_text)
+        logging.info('Word evaluation metrics: %s' % word_results)
+        morph_results = evaluate(main_state.data_morph, morph_segmented_text)
+        logging.info('Morph evaluation metrics: %s' % morph_results)
+        segmented_text = main_state.get_segmented()
+        # Output file (log + segmented text)
+        output_file = args.output_file_base + '.txt'
+        with open(output_file, 'w',  encoding = 'utf8') as out_text:
+            log_info = open('pyseg.log', 'r', encoding = 'utf8').read()
+            out_text.write(log_info)
+            out_text.write('Segmented text:\n')
+            out_text.write(segmented_text)
+            if args.online != 'none':
+                out_text.write('\nLoss list:\n')
+                out_text.write(str(loss_list))
+        return 0
     else:
         segmented_text = main_state.get_segmented()
 
