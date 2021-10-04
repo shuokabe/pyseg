@@ -144,13 +144,6 @@ class SupervisedState(State): # Information on the whole document
         self.seed = seed
         random_gen_sup = random.Random(self.seed)
 
-        # Supervision variable
-        #self.sup_data = supervision_data # dictionary or text file
-        #self.sup_method = supervision_method
-        #self.sup_parameter = supervision_parameter
-        #self.sup_boundary_method = supervision_boundary
-        #self.sup_boundary_parameter = supervision_boundary_parameter
-
         # Supervision helper
         #self.sup = SupervisionHelper(supervision_data,
         #             supervision_method, supervision_parameter,

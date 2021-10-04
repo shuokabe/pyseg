@@ -86,7 +86,7 @@ def parse_args():
     parser.add_argument('--online_iter', default=0, type=int,
                         help='number of iterations for online learning')
 
-    parser.add_argument('--version', action='version', version='1.3.13')
+    parser.add_argument('--version', action='version', version='1.4.0')
 
     return parser.parse_args()
 
@@ -134,21 +134,9 @@ def main():
             args.discount = 0
         # If supervision
         if supervision:
-        #if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'):
-            #if args.supervision_file != 'none': #args.supervision_method != 'none':
-            #    with open(args.supervision_file, 'rb') as d:
-            #        supervision_data = pickle.load(d)
-            #else:
-            #    supervision_data = 'none'
-                #open(args.supervision_file, 'r', encoding = 'utf8').read()
             main_state = SupervisedPYPState(
                 data, discount = args.discount, alpha_1 = args.alpha_1,
                 p_boundary = args.p_boundary, seed = rnd_seed,
-                #supervision_data = supervision_data,
-                #supervision_method = args.supervision_method,
-                #supervision_parameter = args.supervision_parameter,
-                #supervision_boundary = args.supervision_boundary,
-                #supervision_boundary_parameter = args.supervision_boundary_parameter)
                 supervision_helper = supervision_helper)
         else:
             main_state = PYPState(data, discount = args.discount,
@@ -167,21 +155,9 @@ def main():
     else: # Default model: dpseg
         # If supervision
         if supervision:
-        #if (args.supervision_method != 'none') or (args.supervision_boundary != 'none'):
-        #    if args.supervision_file != 'none': #args.supervision_method != 'none':
-        #        with open(args.supervision_file, 'rb') as d:
-        #            supervision_data = pickle.load(d)
-        #    else:
-        #        supervision_data = 'none'
-                #open(args.supervision_file, 'r', encoding = 'utf8').read()
             main_state = SupervisedState(
                 data, alpha_1 = args.alpha_1,
                 p_boundary = args.p_boundary, seed = rnd_seed,
-                #supervision_data = supervision_data,
-                #supervision_method = args.supervision_method,
-                #supervision_parameter = args.supervision_parameter,
-                #supervision_boundary = args.supervision_boundary,
-                #supervision_boundary_parameter = args.supervision_boundary_parameter)
                 supervision_helper = supervision_helper)
         else:
             main_state = State(data, alpha_1 = args.alpha_1,
@@ -196,7 +172,7 @@ def main():
         logging.info(' Hyperparameter sampled after each iteration.')
         dpseg = bool(model_name == 'dpseg') # dpseg or pypseg model?
         # For dpseg only
-        alpha_sample = Concentration_sampling((1, 1), rnd_seed)
+        #alpha_sample = Concentration_sampling((1, 1), rnd_seed)
         # For both dpseg and pypseg
         hyperparam_sample = Hyperparameter_sampling((1, 1), (1, 1),
                                                     rnd_seed, dpseg)
@@ -254,6 +230,10 @@ def main():
         else:
             pass
 
+    # Two-level segmentation
+    if (args.supervision_boundary == 'morpheme'): # Two-level segmentation
+        raw_data = open(filename, 'r', encoding = 'utf8').read()
+        data = utils.morpheme_gold_segment(raw_data, True) # Morpheme level
     # Online learning
     if args.online != 'none':
         loss_list = online_learning(data, main_state, args, temp)
@@ -311,9 +291,6 @@ def main():
     logging.info('Statistics: %s' % (stats.stats))
 
     # Evaluation results
-    if (args.supervision_boundary == 'morpheme'): # Two-level segmentation
-        raw_data = open(filename, 'r', encoding = 'utf8').read()
-        data = utils.morpheme_gold_segment(raw_data, True) # Morpheme level
     results = evaluate(data, segmented_text)
     logging.info('Evaluation metrics: %s' % results)
 

@@ -4,6 +4,7 @@ import logging
 #import pickle
 import random
 from tqdm import tqdm # Progress bar
+import types
 
 #from pyseg import dpseg
 from pyseg.dpseg import State
@@ -74,7 +75,6 @@ def bigram_p_word(state, string):
 
 def online_learning(data, state, args, temp):
     '''Online learning function'''
-    import types
     model_name = args.model
     # Online learning parameters
     online = args.online
