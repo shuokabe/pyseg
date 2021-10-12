@@ -148,10 +148,15 @@ def main():
             alpha_2 = args.alpha_2, p_boundary = args.p_boundary,
             poisson_parameter = args.poisson_parameter)
     elif model_name == 'two_level':
+        # If supervision
+        if supervision:
+            pass
+        else:
+            supervision_helper=None
         main_state = TwoLevelState(data, discount = args.discount,
             alpha_1 = args.alpha_1, p_boundary = args.p_boundary,
-            seed = rnd_seed)
-            # Built-in hyperparameter sampling
+            seed = rnd_seed, supervision_helper = supervision_helper)
+        # Built-in hyperparameter sampling
     else: # Default model: dpseg
         # If supervision
         if supervision:

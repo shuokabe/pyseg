@@ -12,6 +12,7 @@ from pyseg.pypseg import PYPState
 from pyseg.supervised_dpseg import SupervisionHelper, SupervisedState
 from pyseg.supervised_pypseg import SupervisedPYPState
 from pyseg.analysis import Statistics, evaluate, get_boundaries
+from pyseg.hyperparameter import Hyperparameter_sampling
 from pyseg import utils
 
 # General setup of libraries
@@ -85,6 +86,12 @@ def online_learning(data, state, args, temp):
         update = True
     else:
         update = False
+    # Hyperparameter sampling initialisation
+    hyp_sample = args.sample_hyperparameter
+    if hyp_sample:
+        dpseg = bool(model_name == 'dpseg') # dpseg or pypseg model?
+        hyperparam_sample = Hyperparameter_sampling((1, 1), (1, 1),
+                                                    args.rnd_seed, dpseg)
     split_gold = utils.text_to_line(data)
     gold_boundaries = get_boundaries(split_gold)
     loss_list = []
@@ -139,6 +146,14 @@ def online_learning(data, state, args, temp):
                     for j in range(i + 1, state.n_utterances):
                         state.utterances[j].sample(state, temp)
                     utils.check_n_type_token(state, args)
+                    # Hyperparameter sampling
+                    if hyp_sample:
+                        state.alpha_1, state.discount = \
+                            hyperparam_sample.sample_hyperparameter(state)
         else:
             pass
+    if hyp_sample:
+        logging.debug(f'Final value of alpha: {state.alpha_1:.1f}')
+        if model_name == 'pypseg':
+            logging.debug(f'Final value of d: {state.discount:.3f}')
     return loss_list

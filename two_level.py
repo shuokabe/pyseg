@@ -1,3 +1,4 @@
+import collections
 import logging
 
 # Two-level model (word and morpheme)
@@ -8,6 +9,7 @@ logging.basicConfig(level = logging.DEBUG, format = '[%(asctime)s] %(message)s',
 from pyseg.dpseg import State
 from pyseg.pypseg import PYPState
 from pyseg.supervised_dpseg import SupervisionHelper, SupervisedState
+from pyseg.supervised_pypseg import SupervisedPYPState
 from pyseg.hyperparameter import Hyperparameter_sampling
 from pyseg import utils
 
@@ -19,15 +21,41 @@ class TwoLevelState(State):
         self.data_word = utils.morpheme_gold_segment(raw_data, False) # Word level
         self.data_morph = utils.morpheme_gold_segment(raw_data, True) # Morpheme level
 
+        self.sup = supervision_helper
         # Two states for two levels
-        logging.info('Word level model:')
-        self.word_state = PYPState(self.data_word, discount = discount,
-                                alpha_1 = alpha_1, p_boundary = p_boundary,
-                                seed = seed)
-        logging.info('Morpheme level model:')
-        self.morph_state = PYPState(self.data_morph, discount = discount,
+        if self.sup == None:
+            print('Without supervision')
+            logging.info('Word level model:')
+            self.word_state = PYPState(self.data_word, discount = discount,
                                     alpha_1 = alpha_1, p_boundary = p_boundary,
                                     seed = seed)
+            logging.info('Morpheme level model:')
+            self.morph_state = PYPState(self.data_morph, discount = discount,
+                                        alpha_1 = alpha_1, p_boundary = p_boundary,
+                                        seed = seed)
+        else:
+            print('With supervision')
+            # Prepare the two supervision helpers
+            if self.sup.data == 'none':
+                self.word_sup_data, self.morph_sup_data = 'none', 'none'
+            else:
+                self.set_two_level_supervision_dictionary()
+            word_supervision_helper = SupervisionHelper(self.word_sup_data,
+                self.sup.method, self.sup.parameter, self.sup.boundary_method,
+                self.sup.boundary_parameter, verbose = False)
+            morph_supervision_helper = SupervisionHelper(self.morph_sup_data,
+                self.sup.method, self.sup.parameter, self.sup.boundary_method,
+                self.sup.boundary_parameter, verbose = False)
+            logging.info('Word level model:')
+            self.word_state = SupervisedPYPState(self.data_word,
+                                    discount = discount, alpha_1 = alpha_1,
+                                    p_boundary = p_boundary, seed = seed,
+                                    supervision_helper = word_supervision_helper)
+            logging.info('Morpheme level model:')
+            self.morph_state = SupervisedPYPState(self.data_morph,
+                                    discount = discount, alpha_1 = alpha_1,
+                                    p_boundary = p_boundary, seed = seed,
+                                    supervision_helper = morph_supervision_helper)
         ### Harmonise the initial state
 
         self.n_utterances = len(self.word_state.utterances)
@@ -35,8 +63,25 @@ class TwoLevelState(State):
 
         self.alphabet_size = self.word_state.alphabet_size # For main.py
 
+        logging.info(' Hyperparameter sampled after each iteration.')
         self.word_hyper_sample = Hyperparameter_sampling((1, 1), (1, 1), seed, True)
         self.morph_hyper_sample = Hyperparameter_sampling((1, 1), (1, 1), seed, True)
+
+
+    def set_two_level_supervision_dictionary(self):
+        '''Create two supervision dictionaries for the corresponding levels.'''
+        raw_sup_word = ' '.join(list(self.sup.data.keys()))
+        print(self.sup.data)
+        sup_word_list = utils.line_to_word(
+                            utils.morpheme_gold_segment(raw_sup_word, False))
+        #print('sup word list', sup_word_list)
+        self.word_sup_data = collections.Counter(sup_word_list)
+        print('word dict', self.word_sup_data)
+        sup_morph_list = utils.line_to_word(
+                            utils.morpheme_gold_segment(raw_sup_word, True))
+        #print('sup morph list', sup_morph_list)
+        self.morph_sup_data = collections.Counter(sup_morph_list)
+        print('morph dict', self.morph_sup_data)
 
     #def init_phoneme_probs(self):
 

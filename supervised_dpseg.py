@@ -19,7 +19,7 @@ class SupervisionHelper():
     '''Class to handle supervision.'''
     def __init__(self, supervision_data=None, supervision_method='none',
                  supervision_parameter=0, supervision_boundary='none',
-                 supervision_boundary_parameter=0):
+                 supervision_boundary_parameter=0, verbose=True):
         # Supervision variable
         self.data = supervision_data # dictionary or text file
         self.method = supervision_method
@@ -27,15 +27,17 @@ class SupervisionHelper():
         self.boundary_method = supervision_boundary
         self.boundary_parameter = supervision_boundary_parameter
 
+        self.verbose = verbose
+
         # Two-level segmentation (morpheme)
         if self.boundary_method == 'morpheme':
             self.boundary_parameter = 1.0
 
-        if self.method != 'none': # Dictionary supervision
+        if (self.method != 'none') and self.verbose: # Dictionary supervision
             logging.info('Supervision with a dictionary')
             logging.info(f' Supervision method: {self.method:s}, '
                          f'supervision parameter: {self.parameter:.2f}')
-        if self.boundary_method != 'none': # Boundary supervision
+        if (self.boundary_method != 'none') and self.verbose: # Boundary supervision
             logging.info('Supervision with segmentation boundaries')
             logging.info(f' Boundary supervision method: {self.boundary_method:s}, '
                          f'boundary supervision parameter: {self.boundary_parameter:.2f}')
