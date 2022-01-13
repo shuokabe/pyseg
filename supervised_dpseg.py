@@ -33,6 +33,9 @@ class SupervisionHelper():
         if self.boundary_method == 'morpheme':
             self.boundary_parameter = 1.0
 
+
+    def supervision_logs(self):
+        '''Print logging information.'''
         if (self.method != 'none') and self.verbose: # Dictionary supervision
             logging.info('Supervision with a dictionary')
             logging.info(f' Supervision method: {self.method:s}, '
@@ -41,7 +44,6 @@ class SupervisionHelper():
             logging.info('Supervision with segmentation boundaries')
             logging.info(f' Boundary supervision method: {self.boundary_method:s}, '
                          f'boundary supervision parameter: {self.boundary_parameter:.2f}')
-
 
     def set_ngram_character_model(self, state_alphabet):
         # Supervision with a dictionary
@@ -152,6 +154,7 @@ class SupervisedState(State): # Information on the whole document
         #             supervision_boundary, supervision_boundary_parameter)
         #self.sup_boundary_parameter = self.sup.boundary_parameter
         self.sup = supervision_helper
+        self.sup.supervision_logs()
 
         # Data and Utterance object
         self.unsegmented = utils.unsegmented(data)
@@ -300,6 +303,7 @@ class SupervisedState(State): # Information on the whole document
 
         elif self.sup.method in ['init_bigram', 'init_trigram', 'mixture_bigram']:
             self.phoneme_ps = self.sup.set_ngram_character_model(self.alphabet)
+            self.character_model = dict() # Dictionary to speed up the model
 
             print(f'Sum of probabilities: {sum(self.phoneme_ps.values())}')
 
@@ -313,6 +317,29 @@ class SupervisedState(State): # Information on the whole document
     # Probabilities
     #def p_cont(self):
 
+    def p_bigram_character_model(self, string):
+        '''
+        Probability from the bigram character model.
+        It uses a dictionary as memory to store the values.
+        '''
+        if string in self.character_model:
+            return self.character_model[string]
+        else:
+            p = 1
+            n_ngram = 2 # Here bigram case only
+            #if self.sup.method in ['init_bigram', 'mixture_bigram']: #
+            #    n_ngram = 2
+            #elif self.sup.method == 'init_trigram': # Not working
+            #    n_ngram = 3
+            #else:
+            #    pass
+            considered_word = f'<{string:s}>'
+            for i in range(len(considered_word) - n_ngram + 1):
+                ngram = considered_word[i:(i + n_ngram)]
+                p = p * self.phoneme_ps[ngram] #
+            self.character_model[string] = p
+            return p
+
     def p_word(self, string):
         '''
         Computes the prior probability of a string of length n:
@@ -322,16 +349,8 @@ class SupervisedState(State): # Information on the whole document
         p = 1
         # Character model
         if self.sup.method in ['init_bigram', 'init_trigram', 'mixture_bigram']:
-            if self.sup.method in ['init_bigram', 'mixture_bigram']:
-                n_ngram = 2
-            elif self.sup.method == 'init_trigram':
-                n_ngram = 3
-            else:
-                pass
-            considered_word = f'<{string:s}>'
-            for i in range(len(considered_word) - n_ngram + 1):
-                ngram = considered_word[i:(i + n_ngram)]
-                p = p * self.phoneme_ps[ngram]
+            # Code between the two # in the bigram_character_model function above
+            p = self.p_bigram_character_model(string)
         else: # Unigram case
             for letter in string:
                 p = p * self.phoneme_ps[letter]

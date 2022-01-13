@@ -144,6 +144,7 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         #             supervision_boundary, supervision_boundary_parameter)
         #self.sup_boundary_parameter = self.sup.boundary_parameter
         self.sup = supervision_helper
+        self.sup.supervision_logs()
 
         # Data and Utterance object
         self.unsegmented = utils.unsegmented(data)
@@ -245,6 +246,7 @@ class SupervisedPYPState(PYPState): # Information on the whole document
             logging.info(f' Chosen initialisation method: {chosen_method}')
 
             self.phoneme_ps = self.sup.set_bigram_character_model(self.alphabet)
+            self.character_model = dict() # Dictionary to speed up the model
 
             print(f'Sum of probabilities: {sum(self.phoneme_ps.values())}')
         else:
@@ -257,6 +259,23 @@ class SupervisedPYPState(PYPState): # Information on the whole document
     # Probabilities
     #def p_cont(self):
 
+    def p_bigram_character_model(self, string):
+        '''
+        Probability from the bigram character model.
+        It uses a dictionary as memory to store the values.
+        '''
+        if string in self.character_model:
+            return self.character_model[string]
+        else:
+            p = 1
+            n_ngram = 2 #
+            considered_word = f'<{string:s}>'
+            for i in range(len(considered_word) - n_ngram + 1):
+                ngram = considered_word[i:(i + n_ngram)]
+                p = p * self.phoneme_ps[ngram] #
+            self.character_model[string] = p
+            return p
+
     def p_word(self, string):
         '''
         Computes the prior probability of a string of length n:
@@ -268,11 +287,12 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         # Character model
         if self.sup.method in ['init_bigram', 'init_trigram', 'mixture_bigram']:
             #if self.sup_method in ['init_bigram', 'mixture_bigram']:
-            n_ngram = 2
-            considered_word = f'<{string:s}>'
-            for i in range(len(considered_word) - n_ngram + 1):
-                ngram = considered_word[i:(i + n_ngram)]
-                p = p * self.phoneme_ps[ngram]
+            #n_ngram = 2
+            #considered_word = f'<{string:s}>'
+            #for i in range(len(considered_word) - n_ngram + 1):
+            #    ngram = considered_word[i:(i + n_ngram)]
+            #    p = p * self.phoneme_ps[ngram]
+            p = self.p_bigram_character_model(string)
         else: # Unigram case
             for letter in string:
                 p = p * self.phoneme_ps[letter]

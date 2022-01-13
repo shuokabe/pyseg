@@ -14,7 +14,7 @@ from pyseg.online import online_learning
 from pyseg.analysis import Statistics, evaluate, get_boundaries
 from pyseg.hyperparameter import Concentration_sampling, Hyperparameter_sampling
 from pyseg.nhpylm import NHPYLMState
-from pyseg.two_level import TwoLevelState
+from pyseg.two_level import TwoLevelState, HierarchicalTwoLevelState
 from pyseg import utils
 
 # General setup of libraries
@@ -39,7 +39,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename', type=str, help='path to file')
     parser.add_argument('-m', '--model', default='dpseg', type=str,
-                        choices=['dpseg', 'pypseg', 'nhpylm', 'two_level'], help='model name')
+                        choices=['dpseg', 'pypseg', 'nhpylm', 'two_level',
+                        'htl'],  help='model name')
     parser.add_argument('-a', '--alpha_1', default=20, type=int,
                         help='concentration parameter for unigram DP')
     parser.add_argument('-b', '--p_boundary', default=0.5, type=float,
@@ -58,6 +59,10 @@ def parse_args():
                         help='concentration parameter for bigram model')
     parser.add_argument('-p', '--poisson_parameter', default=0, type=int,
                         help='parameter for NHPYLM Poisson correction')
+    parser.add_argument('-am', '--alpha_m', default=20, type=int,
+                        help='concentration parameter for morphemes (HTL)')
+    parser.add_argument('-dm', '--discount_m', default=0.5, type=float,
+                        help='discount parameter for morphemes (HTL)')
     parser.add_argument('-v', '--verbose', default=False,
                         type=bool, help='verbosity of the output')
 
@@ -86,7 +91,7 @@ def parse_args():
     parser.add_argument('--online_iter', default=0, type=int,
                         help='number of iterations for online learning')
 
-    parser.add_argument('--version', action='version', version='1.4.0')
+    parser.add_argument('--version', action='version', version='1.5.0')
 
     return parser.parse_args()
 
@@ -147,7 +152,15 @@ def main():
         main_state = NHPYLMState(data, alpha_1 = args.alpha_1,
             alpha_2 = args.alpha_2, p_boundary = args.p_boundary,
             poisson_parameter = args.poisson_parameter)
+    elif model_name == 'htl': # Hierarchical Two Level model
+        args.sample_hyperparameter = True
+        args.discount = 0
+        main_state = HierarchicalTwoLevelState(data, discount = args.discount,
+            alpha_1 = args.alpha_1, p_boundary = args.p_boundary,
+            discount_m = args.discount_m, alpha_m = args.alpha_m, seed = rnd_seed)
+        # NO MORPHEME HYPERPARAMETER SAMPLING FOR THE MOMENT
     elif model_name == 'two_level':
+        args.discount = 0
         # If supervision
         if supervision:
             pass
@@ -181,6 +194,9 @@ def main():
         # For both dpseg and pypseg
         hyperparam_sample = Hyperparameter_sampling((1, 1), (1, 1),
                                                     rnd_seed, dpseg)
+        if model_name == 'htl':
+            morph_hyper_sample = Hyperparameter_sampling((1, 1), (1, 1), rnd_seed,
+                                                         dpseg, morph=True)
     if args.online != 'none':
         logging.info(f'Online learning {args.online} update')
         if (args.online_batch > 0) and (args.online_iter > 0):
@@ -218,7 +234,7 @@ def main():
                     pass
 
         main_state.sample(temp)
-        if model_name != 'two_level':
+        if model_name not in ['two_level', 'htl']: #model_name != 'two_level':
             utils.check_n_type_token(main_state, args)
         else:
             pass
@@ -227,11 +243,17 @@ def main():
             #main_state.alpha_1 = alpha_sample.sample_concentration(main_state)
             main_state.alpha_1, main_state.discount = \
                     hyperparam_sample.sample_hyperparameter(main_state)
+            if model_name == 'htl':
+                main_state.alpha_m, main_state.discount_m = \
+                        morph_hyper_sample.sample_hyperparameter(main_state)
 
     if hyp_sample:
         logging.debug(f'Final value of alpha: {main_state.alpha_1:.1f}')
         if model_name == 'pypseg':
             logging.debug(f'Final value of d: {main_state.discount:.3f}')
+        elif model_name == 'htl':
+            logging.debug(f'Final value of alpha: {main_state.alpha_m:.1f}'
+                          '(morpheme)')
         else:
             pass
 
@@ -262,9 +284,13 @@ def main():
                                for utt in main_state.utterances]
         segmented_text = '\n'.join(segmented_text_list)
         segmented_text.replace('$', '')
-    elif model_name == 'two_level':
-        word_segmented_text = main_state.word_state.get_segmented()
-        morph_segmented_text = main_state.morph_state.get_segmented()
+    elif model_name in ['two_level', 'htl']: #model_name == 'two_level':
+        if model_name == 'two_level':
+            word_segmented_text = main_state.word_state.get_segmented()
+            morph_segmented_text = main_state.morph_state.get_segmented()
+        else:
+            word_segmented_text = main_state.get_segmented()
+            morph_segmented_text = main_state.get_segmented_morph()
         stats_word = Statistics(word_segmented_text)
         stats_morph = Statistics(morph_segmented_text)
         #print('State and stats:', main_state.word_counts.lexicon == stats.lexicon)
@@ -275,7 +301,10 @@ def main():
         logging.info('Word evaluation metrics: %s' % word_results)
         morph_results = evaluate(main_state.data_morph, morph_segmented_text)
         logging.info('Morph evaluation metrics: %s' % morph_results)
-        segmented_text = main_state.get_segmented()
+        if model_name == 'two_level':
+            segmented_text = main_state.get_segmented()
+        else:
+            segmented_text = main_state.get_two_level_segmentation()
         # Output file (log + segmented text)
         output_file = args.output_file_base + '.txt'
         with open(output_file, 'w',  encoding = 'utf8') as out_text:

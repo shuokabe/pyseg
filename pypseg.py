@@ -111,9 +111,9 @@ class Restaurant:
     def remove_customer(self, word):
         '''Remove a customer (word) from a table and close it if necessary.'''
         #n_table_word = len(self.restaurant.get(word, []))
-        n_table_word = self.tables.get(word, [])
+        n_table_word = self.tables.get(word, 0)
         if (n_table_word == 0):
-            raise KeyError('There is no table with the word label %s.' % word)
+            raise KeyError(f'There is no table with the word label {word}.')
         elif (n_table_word == 1): # Only one table
             self.restaurant[word][0] += -1
             self.customers[word] += -1
@@ -300,20 +300,16 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
         #random_state = random.getstate() # Avoid issues with random numbers
         if self.line_boundaries[i]: # Boundary at the i-th position ('yes' case)
             #print('yes case')
-            #lexicon.remove_one(left)
-            #lexicon.remove_one(right)
             restaurant.remove_customer(left) #
             restaurant.remove_customer(right) #
             #print(left, lexicon.lexicon[left], right, lexicon.lexicon[right])
         else: # No boundary at the i-th position ('no' case)
             #print('no case')
-            #lexicon.remove_one(centre)
             restaurant.remove_customer(centre) #
             #print(centre, lexicon.lexicon[centre])
         #random.setstate(random_state)
 
-        denom = restaurant.n_customers + state.alpha_1 #lexicon.n_tokens
-        #denom = restaurant.n_customers + state.alpha_1
+        denom = restaurant.n_customers + state.alpha_1
         #print('denom: ', denom)
         yes = state.p_cont() * self.numer_base(left, state) \
         * (self.numer_base(right, state) + utils.kdelta(left, right)) / (denom + 1)
@@ -338,15 +334,12 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
         if (random_value < p_yes):
             #print('Boundary case')
             self.line_boundaries[i] = True
-            #lexicon.add_one(left)
-            #lexicon.add_one(right)
             restaurant.add_customer(left) #
             restaurant.add_customer(right) #
             #utils.check_equality(restaurant.customers[left], lexicon.lexicon[left])
         else:
             #print('No boundary case')
             self.line_boundaries[i] = False
-            #lexicon.add_one(centre)
             restaurant.add_customer(centre) #
             #utils.check_equality(restaurant.customers[centre], lexicon.lexicon[centre])
 

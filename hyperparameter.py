@@ -53,7 +53,7 @@ class Concentration_sampling:
 
 
 class Hyperparameter_sampling:
-    def __init__(self, theta_prior, d_prior, seed=42, dpseg=False):
+    def __init__(self, theta_prior, d_prior, seed=42, dpseg=False, morph=False):
         '''Object to ease hyperparameter sampling.
 
         Hyperparameters: concentration parameter and discount parameter.
@@ -68,6 +68,8 @@ class Hyperparameter_sampling:
             Seed value to generate random values (exclusive to this object)
         dpseg : bool
             Bool to indicate the model type (dpseg or pypseg)
+        morph : bool
+            Bool to indicate if morpheme hyperparameters are sampled (for HTL)
 
         Attributes
         ----------
@@ -83,6 +85,8 @@ class Hyperparameter_sampling:
             Random number generator for the scipy random variables
         dpseg : bool
             Bool to indicate the model type (dpseg or pypseg)
+        morph : bool
+            Bool to indicate if morpheme hyperparameters are sampled (for HTL)
 
         '''
         self.alpha_prior, self.beta_prior = theta_prior
@@ -90,24 +94,25 @@ class Hyperparameter_sampling:
         #self.random_gen = default_rng(seed)
         self.random_gen = RandomState(seed) # Legacy Random Generation
         self.dpseg = dpseg
+        self.morph = morph
 
     def sample_hyperparameter(self, state):
         '''Sample the hyperparameters.'''
         self.sample_auxiliary(state)
-        concentration = self.sample_concentration(state)
+        concentration = self.sample_concentration() #state)
         if self.dpseg: # dpseg model, i.e. discount == 0
             return concentration, 0
         else: # Other models
-            discount = self.sample_discount(state)
+            discount = self.sample_discount() #state)
             return concentration, discount
 
-    def sample_concentration(self, state):
+    def sample_concentration(self): #, state):
         '''Sample the concentration parameter alpha (here called theta).'''
         Y = sum(self.y_i_list)
         return self.random_gen.gamma(self.alpha_prior + Y,
                                      self.beta_prior - np.log(self.x))
 
-    def sample_discount(self, state):
+    def sample_discount(self): #, state):
         '''Sample the discount parameter d.'''
         Y = sum([1 - y for y in self.y_i_list])
         Z = sum([1 - z for z in self.z_wkj_list])
@@ -115,7 +120,11 @@ class Hyperparameter_sampling:
 
     def sample_auxiliary(self, state):
         '''Sample auxiliary variable x, y_i, z_wkj.'''
-        n, t = state.restaurant.n_customers, state.restaurant.n_tables
+        if self.morph: # For morpheme-level hyperparameters in the HTL model
+            restaurant = state.restaurant_m
+        else: # Other models (default)
+            restaurant = state.restaurant
+        n, t = restaurant.n_customers, restaurant.n_tables
         # x
         if n <= 1:
             self.x = 1
@@ -130,7 +139,7 @@ class Hyperparameter_sampling:
         utils.check_equality(len(self.y_i_list), t - 1)
         # z_wkj
         self.z_wkj_list = []
-        for table_w_list in state.restaurant.restaurant.values():
+        for table_w_list in restaurant.restaurant.values():
             # Check each table with word label w
             for c_wk in table_w_list:
                 if c_wk >= 2:
