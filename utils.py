@@ -40,10 +40,12 @@ def check_value_between(value, lower_b, upper_b):
 
 def check_equality(value_left, value_right):
     '''Check that both given values are equal.'''
-    if (value_left == value_right):
-        pass
-    else:
-        raise ValueError('Both values must be equal; '
+    #if (value_left == value_right):
+    #    pass
+    #else:
+    #    raise ValueError('Both values must be equal; '
+    #                     f'currently {value_left} and {value_right}.')
+    assert (value_left == value_right), 'Both values must be equal; '
                          f'currently {value_left} and {value_right}.')
 
 # Check the number of types and token
@@ -103,3 +105,24 @@ def morpheme_gold_segment(text, morpheme=False):
         return re.sub('-', ' ', text)
     else: # Word level segmentation
         return re.sub('-', '', text)
+
+def segment_sentence_with_boundaries(sentence, boundaries):
+    '''Segment a sentence (string) according to a boundary vector (list).
+
+    sentence is an unsegmented sentence.
+    '''
+    segmented_list = []
+    beg = 0
+    #pos = 0
+    end = len(sentence)
+    check_equality(end, len(boundaries))
+    #for boundary in boundaries:
+    #    if boundary: # If there is a boundary
+    #        segmented_list += [sentence[beg:(pos + 1)]]
+    #        beg = pos + 1
+    #    pos += 1
+    while beg < end:
+        pos = boundaries.index(True, beg)
+        segmented_list.append(sentence[beg:(pos + 1)])
+        beg = pos + 1
+    return segmented_list

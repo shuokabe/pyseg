@@ -183,18 +183,20 @@ class State: # Information on the whole document
         segmented_text_list = []
         utils.check_equality(len(self.utterances), len(self.unsegmented_list))
         for i in range(len(self.utterances)):
-            segmented_line_list = []
+            #segmented_line_list = []
             unsegmented_line = self.unsegmented_list[i]
             boundaries_line = self.utterances[i].line_boundaries
-            beg = 0
-            pos = 0
-            utils.check_equality(len(boundaries_line), len(unsegmented_line))
-            #utils.check_equality(len(self.boundaries[i]), len(unsegmented_line))
-            for boundary in boundaries_line:
-                if boundary: # If there is a boundary
-                    segmented_line_list += [unsegmented_line[beg:(pos + 1)]]
-                    beg = pos + 1
-                pos += 1
+            #beg = 0
+            #pos = 0
+            #utils.check_equality(len(boundaries_line), len(unsegmented_line))
+            ##utils.check_equality(len(self.boundaries[i]), len(unsegmented_line))
+            #for boundary in boundaries_line:
+            #    if boundary: # If there is a boundary
+            #        segmented_line_list += [unsegmented_line[beg:(pos + 1)]]
+            #        beg = pos + 1
+            #    pos += 1
+            segmented_line_list = utils.segment_sentence_with_boundaries(
+                unsegmented_line, boundaries_line)
             # Convert list of words into a string sentence
             segmented_line = ' '.join(segmented_line_list)
             segmented_text_list.append(segmented_line)
@@ -323,7 +325,9 @@ class Utterance: # Information on one utterance of the document
     def next_boundary(self, i):
         '''Return the index of the next boundary with respect to i.'''
         utils.check_value_between(i, 0, len(self.sentence) - 1) # No last pos
-        for j in range(i + 1, len(self.line_boundaries)):
-            if self.line_boundaries[j] == True:
-                return j
-        return 0
+        #for j in range(i + 1, len(self.line_boundaries)):
+        #    if self.line_boundaries[j] == True:
+        #        return j
+        #return 0
+        # Start search from (i + 1)
+        return self.line_boundaries.index(True, i + 1)

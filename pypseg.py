@@ -71,7 +71,9 @@ class Restaurant:
         self.random_gen = random.Random(seed) # Avoid issues with main random numbers
 
     def phi(self, word):
-        '''numer_base function from PYPUtterance.'''
+        '''numer_base function from PYPUtterance.
+
+        The word must be in the restaurant (guaranteed in add_customer()).'''
         base = self.customers[word] - (self.discount * self.tables[word])
         base += ((self.discount * self.n_tables) + self.alpha_1) \
                 * self.state.p_word(word)

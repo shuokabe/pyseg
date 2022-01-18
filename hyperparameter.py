@@ -99,20 +99,20 @@ class Hyperparameter_sampling:
     def sample_hyperparameter(self, state):
         '''Sample the hyperparameters.'''
         self.sample_auxiliary(state)
-        concentration = self.sample_concentration() #state)
+        concentration = self.sample_concentration()
         if self.dpseg: # dpseg model, i.e. discount == 0
             return concentration, 0
         else: # Other models
-            discount = self.sample_discount() #state)
+            discount = self.sample_discount()
             return concentration, discount
 
-    def sample_concentration(self): #, state):
+    def sample_concentration(self):
         '''Sample the concentration parameter alpha (here called theta).'''
         Y = sum(self.y_i_list)
         return self.random_gen.gamma(self.alpha_prior + Y,
                                      self.beta_prior - np.log(self.x))
 
-    def sample_discount(self): #, state):
+    def sample_discount(self):
         '''Sample the discount parameter d.'''
         Y = sum([1 - y for y in self.y_i_list])
         Z = sum([1 - z for z in self.z_wkj_list])

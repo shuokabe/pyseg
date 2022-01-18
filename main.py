@@ -54,7 +54,7 @@ def parse_args():
     parser.add_argument('-r', '--rnd_seed', default=42, type=int,
                         help='random seed')
     parser.add_argument('-s', '--sample_hyperparameter', default=False,
-                        type=bool, help='hyperparameter sampling')
+                        type=bool, help='hyperparameter sampling (dp & pypseg)')
     parser.add_argument('-a2', '--alpha_2', default=-1, type=int,
                         help='concentration parameter for bigram model')
     parser.add_argument('-p', '--poisson_parameter', default=0, type=int,
@@ -91,7 +91,7 @@ def parse_args():
     parser.add_argument('--online_iter', default=0, type=int,
                         help='number of iterations for online learning')
 
-    parser.add_argument('--version', action='version', version='1.5.0')
+    parser.add_argument('--version', action='version', version='1.5.1')
 
     return parser.parse_args()
 
@@ -158,7 +158,7 @@ def main():
         main_state = HierarchicalTwoLevelState(data, discount = args.discount,
             alpha_1 = args.alpha_1, p_boundary = args.p_boundary,
             discount_m = args.discount_m, alpha_m = args.alpha_m, seed = rnd_seed)
-        # NO MORPHEME HYPERPARAMETER SAMPLING FOR THE MOMENT
+        # Built-in hyperparameter sampling
     elif model_name == 'two_level':
         args.discount = 0
         # If supervision
@@ -195,8 +195,8 @@ def main():
         hyperparam_sample = Hyperparameter_sampling((1, 1), (1, 1),
                                                     rnd_seed, dpseg)
         if model_name == 'htl':
-            morph_hyper_sample = Hyperparameter_sampling((1, 1), (1, 1), rnd_seed,
-                                                         dpseg, morph=True)
+            morph_hyper_sample = Hyperparameter_sampling((1, 1), (1, 1),
+                rnd_seed, dpseg, morph=True)
     if args.online != 'none':
         logging.info(f'Online learning {args.online} update')
         if (args.online_batch > 0) and (args.online_iter > 0):
@@ -215,7 +215,8 @@ def main():
 
     # List of temp_incr temperatures (floats)
     temperatures = np.linspace(0.1, 1, temp_incr)
-    logging.info(f'Raising temperature in {temp_incr:d} increments: {temperatures}')
+    logging.info(f'Raising temperature in {temp_incr:d} increments'
+                 f': {temperatures}')
 
     # Begin sampling loop
     temp_index = 0
@@ -334,7 +335,8 @@ def main():
         split_gold = utils.text_to_line(data)
         split_seg = utils.text_to_line(segmented_text)
         if args.supervision_boundary_parameter < 1: # Ratio case
-            supervision_index = int(np.ceil(args.supervision_boundary_parameter * len(split_seg)))
+            supervision_index = int(np.ceil(
+                args.supervision_boundary_parameter * len(split_seg)))
             print('Supervision index:', supervision_index)
         else: # Index case
             supervision_index = int(args.supervision_boundary_parameter)
