@@ -259,6 +259,7 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
         self.sentence = sentence # Unsegmented utterance # Char
         self.p_segment = p_segment
         utils.check_probability(p_segment)
+        self.sentence_length = len(self.sentence)
 
         self.line_boundaries = []
         self.init_boundary()

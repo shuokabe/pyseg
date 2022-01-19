@@ -224,6 +224,7 @@ class Utterance: # Information on one utterance of the document
         self.sentence = sentence # Unsegmented utterance
         self.p_segment = p_segment
         utils.check_probability(p_segment)
+        self.sentence_length = len(self.sentence)
 
         self.line_boundaries = []
         self.init_boundary()
@@ -243,19 +244,19 @@ class Utterance: # Information on one utterance of the document
 
     def left_word(self, i):
         '''Return the word on the left of i.'''
-        utils.check_value_between(i, 0, len(self.sentence))
+        utils.check_value_between(i, 0, self.sentence_length) #len(self.sentence))
         prev = self.prev_boundary(i)
         return self.sentence[(prev + 1):(i + 1)]
 
     def right_word(self, i):
         '''Return the word on the right of i.'''
-        utils.check_value_between(i, 0, len(self.sentence) - 1) # No last pos
+        utils.check_value_between(i, 0, self.sentence_length - 1) # No last pos
         next = self.next_boundary(i)
         return self.sentence[(i + 1):(next + 1)]
 
     def centre_word(self, i):
         '''Return the word which contains the i-th position in the sentence.'''
-        utils.check_value_between(i, 0, len(self.sentence) - 1) # No last pos
+        utils.check_value_between(i, 0, self.sentence_length - 1) # No last pos
         prev = self.prev_boundary(i)
         next = self.next_boundary(i)
         return self.sentence[(prev + 1):(next + 1)]
@@ -264,9 +265,9 @@ class Utterance: # Information on one utterance of the document
         #if (model_type == 1): # Unigram model
         # Final boundary posn must always be true, so don't sample it. #
         #print('Utterance: ', self.sentence, 'boundary: ', self.line_boundaries)
-        utils.check_equality(len(self.line_boundaries), len(self.sentence))
+        utils.check_equality(len(self.line_boundaries), self.sentence_length)
 
-        for i in range(len(self.line_boundaries) - 1):
+        for i in range(self.sentence_length - 1):
             self.sample_one(i, state, temp)
 
     def sample_one(self, i, state, temp):
@@ -316,7 +317,7 @@ class Utterance: # Information on one utterance of the document
 
     def prev_boundary(self, i):
         '''Return the index of the previous boundary with respect to i.'''
-        utils.check_value_between(i, 0, len(self.sentence))
+        utils.check_value_between(i, 0, self.sentence_length)
         for j in range(i - 1, -1, -1):
             if self.line_boundaries[j] == True:
                 return j
@@ -324,10 +325,6 @@ class Utterance: # Information on one utterance of the document
 
     def next_boundary(self, i):
         '''Return the index of the next boundary with respect to i.'''
-        utils.check_value_between(i, 0, len(self.sentence) - 1) # No last pos
-        #for j in range(i + 1, len(self.line_boundaries)):
-        #    if self.line_boundaries[j] == True:
-        #        return j
-        #return 0
+        utils.check_value_between(i, 0, self.sentence_length - 1) # No last pos
         # Start search from (i + 1)
         return self.line_boundaries.index(True, i + 1)

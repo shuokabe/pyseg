@@ -330,6 +330,7 @@ class SupervisedPYPUtterance(PYPUtterance):
         self.sup_sentence = sup_sentence # Supervision sentence (with spaces)
         self.p_segment = p_segment
         utils.check_probability(p_segment)
+        self.sentence_length = len(self.sentence)
 
         self.random_gen = random_gen
 

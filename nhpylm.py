@@ -167,6 +167,7 @@ class NHPYLMUtterance(Utterance): # Information on one utterance of the document
         self.sentence = sentence # Unsegmented utterance
         self.p_segment = p_segment
         utils.check_probability(p_segment)
+        self.sentence_length = len(self.sentence)
 
         self.line_boundaries = []
         self.init_boundary()

@@ -33,10 +33,12 @@ def check_probability(prob):
 
 def check_value_between(value, lower_b, upper_b):
     '''Check that the given value is above a certain value and below another.'''
-    if (value >= lower_b) and (value < upper_b):
-        pass
-    else:
-        raise ValueError(f'{value} must be between {lower_b} and {upper_b}.')
+    #if (value >= lower_b) and (value < upper_b):
+    #    pass
+    #else:
+    #    raise ValueError(f'{value} must be between {lower_b} and {upper_b}.')
+    assert ((value >= lower_b) and (value < upper_b)), (f'{value} must be '
+            f'between {lower_b} and {upper_b}.')
 
 def check_equality(value_left, value_right):
     '''Check that both given values are equal.'''
@@ -45,7 +47,7 @@ def check_equality(value_left, value_right):
     #else:
     #    raise ValueError('Both values must be equal; '
     #                     f'currently {value_left} and {value_right}.')
-    assert (value_left == value_right), 'Both values must be equal; '
+    assert (value_left == value_right), ('Both values must be equal; '
                          f'currently {value_left} and {value_right}.')
 
 # Check the number of types and token
@@ -68,17 +70,15 @@ def check_n_type_token(state, args):
 # Other utility functions
 def kdelta(i, j):
     '''Kronecker delta: return 1 if both i and j have the same value, 0 otherwise.'''
-    if (i == j):
-        return 1
-    else:
-        return 0
+    return (i == j) # 0 or 1
 
 def indicator(element, subset):
     '''Indicator function: return 1 if the element is in the subset, 0 otherwise.'''
-    if element in subset:
-        return 1
-    else:
-        return 0
+    #if element in subset:
+    #    return 1
+    #else:
+    #    return 0
+    return element in subset # 0 or 1
 
 def delete_value_from_vector(vector, value):
     '''Delete a given value from a vector.

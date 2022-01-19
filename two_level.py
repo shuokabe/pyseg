@@ -495,6 +495,7 @@ class HierarchicalUtterance(PYPUtterance): # Information on one utterance of the
         self.sentence = sentence # Unsegmented utterance # Char
         self.p_segment = p_segment
         utils.check_probability(p_segment)
+        self.sentence_length = len(self.sentence)
 
         self.line_boundaries = [] # Word-level boundaries
         self.morph_boundaries = [] # Morpheme-level boundaries
@@ -506,7 +507,7 @@ class HierarchicalUtterance(PYPUtterance): # Information on one utterance of the
     #def init_boundary(self): # Random case only
 
     def init_morph_boundary(self): # Random case only
-        for i in range(len(self.sentence) - 1):
+        for i in range(self.sentence_length - 1):
             if self.line_boundaries[i]:
                 self.morph_boundaries.append(True)
             else:
@@ -570,7 +571,7 @@ class HierarchicalUtterance(PYPUtterance): # Information on one utterance of the
         #left = self.left_word(i)
         #right = self.right_word(i)
         #centre = self.centre_word(i)
-        utils.check_value_between(i, 0, len(self.sentence) - 1) # No last pos
+        utils.check_value_between(i, 0, self.sentence_length - 1) # No last pos
         left = self.sentence[(self.prev + 1):(i + 1)]
         right = self.sentence[(i + 1):(self.next + 1)]
         centre = self.sentence[(self.prev + 1):(self.next + 1)]
@@ -680,6 +681,7 @@ class HierarchicalWord(PYPUtterance): # Information on one utterance of the docu
         self.sentence = sentence # Unsegmented utterance # Char
         #self.p_segment = p_segment
         #utils.check_probability(p_segment)
+        self.sentence_length = len(self.sentence)
         #self.line_boundaries = [] # Here, morpheme-level boundaries
         self.line_boundaries = boundaries # Here, morpheme-level boundaries
         #self.init_boundary()
