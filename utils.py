@@ -26,10 +26,12 @@ def add_EOS(text_list):
 # Checking functions
 def check_probability(prob):
     '''Check that the given value is a probability.'''
-    if ((prob >= 0) and (prob <= 1)):
-        pass
-    else:
-        raise ValueError(f'{prob} must be between 0 and 1 to be a probability.')
+    #if ((prob >= 0) and (prob <= 1)):
+    #    pass
+    #else:
+    #    raise ValueError(f'{prob} must be between 0 and 1 to be a probability.')
+    assert ((prob >= 0) and (prob <= 1)), (f'{prob} must be '
+            'between 0 and 1 to be a probability.')
 
 def check_value_between(value, lower_b, upper_b):
     '''Check that the given value is above a certain value and below another.'''
@@ -69,7 +71,7 @@ def check_n_type_token(state, args):
 
 # Other utility functions
 def kdelta(i, j):
-    '''Kronecker delta: return 1 if both i and j have the same value, 0 otherwise.'''
+    '''Kronecker delta: return 1 if i and j have the same value, 0 otherwise.'''
     return (i == j) # 0 or 1
 
 def indicator(element, subset):

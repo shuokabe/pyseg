@@ -317,7 +317,7 @@ class Utterance: # Information on one utterance of the document
 
     def prev_boundary(self, i):
         '''Return the index of the previous boundary with respect to i.'''
-        utils.check_value_between(i, 0, self.sentence_length)
+        ###utils.check_value_between(i, 0, self.sentence_length)###
         for j in range(i - 1, -1, -1):
             if self.line_boundaries[j] == True:
                 return j
@@ -325,6 +325,7 @@ class Utterance: # Information on one utterance of the document
 
     def next_boundary(self, i):
         '''Return the index of the next boundary with respect to i.'''
-        utils.check_value_between(i, 0, self.sentence_length - 1) # No last pos
+        ###utils.check_value_between(i, 0, self.sentence_length - 1)###
+        # No last pos
         # Start search from (i + 1)
         return self.line_boundaries.index(True, i + 1)

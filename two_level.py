@@ -225,10 +225,8 @@ class WordLevelRestaurant(Restaurant):
 
     def phi(self, hier_word):
         '''numer_base function from HierarchicalUtterance.'''
-        #base = self.customers[word] - (self.discount * self.tables[word])
         #base += ((self.discount * self.n_tables) + self.alpha_1) \
         #        * self.state.p_word(word)
-        #return base
         word = hier_word.sentence
         # Position is used to find the boundary section
         #if word not in state.restaurant.customers: # If the word is not in the lexicon
@@ -245,14 +243,13 @@ class WordLevelRestaurant(Restaurant):
         Hier, it is not a string (word) but the HierarchicalWord object
         (hier_word).
         '''
-        utils.check_equality(len(self.customers.keys()), len(self.restaurant.keys()))
+        #utils.check_equality(len(self.customers.keys()), len(self.restaurant.keys()))
         word = hier_word.sentence
-        if word in self.restaurant.keys(): # Add the customer to a table (possibly new)
+        if word in self.restaurant: # Add the customer to a table (possibly new)
             n_customers_w = self.customers[word]
             n_tables_w = self.tables[word]
             random_value = self.random_gen.random()
             new_customer = random_value * self.phi(hier_word) #self.phi(word)
-            #new_customer = random_value * (n_customers_w + self.alpha_1)
             utils.check_equality(self.tables[word], len(self.restaurant[word]))
             if (new_customer > (n_customers_w - (self.discount * n_tables_w))):
                 # Open a new table
@@ -308,11 +305,6 @@ class WordLevelRestaurant(Restaurant):
         utils.check_equality(length_text, len(text_morph))
         for i in range(length_text):
         #for line in text:
-            #line_word = text_word[i]
-            #line_morph = text_morph[i]
-            #split_line = utils.line_to_word(line)
-            #split_line_word = utils.line_to_word(line_word)
-            #split_line_morph = utils.line_to_word(line_morph)
             line_word = utils.line_to_word(text_word[i])
             line_morph = utils.line_to_word(text_morph[i])
             morph_boundaries = self.get_morpheme_boundaries(line_word, line_morph)
@@ -378,6 +370,8 @@ class HierarchicalTwoLevelState(PYPState): # Information on the whole document
 
         # Morpheme restaurant
         init_segmented_m_list = utils.text_to_line(self.get_segmented_morph())
+        self.character_model = dict() # For P(morpheme) (string probability)
+        self.p_length = dict()
         self.restaurant_m = Restaurant(self.alpha_m, self.discount_m, self, self.seed)
         self.restaurant_m.init_tables(init_segmented_m_list)
         # Restaurant object to count the number of tables (dict)
@@ -387,33 +381,39 @@ class HierarchicalTwoLevelState(PYPState): # Information on the whole document
         logging.debug(f'{self.restaurant.n_tables} tables initially (word)')
         logging.debug(f'{self.restaurant_m.n_tables} tables initially (morpheme)')
 
-        self.character_model = dict() # For P(morpheme) (string probability)
-
 
     #def init_phoneme_probs(self):
 
     # Probabilities
     #def p_cont(self):
 
-    #def p_word(self, string):
-    #    '''p_word from PYPState with a memory to store already-seen strings.'''
-    #    if string in self.character_model:
-    #        return self.character_model[string]
-    #    else:
-    #        #p = 1
-    #        p = ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
-    #        for letter in string:
-    #            p = p * self.phoneme_ps[letter]
-    #        #p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
-    #        self.character_model[string] = p
-    #        return p
+    def p_word(self, string):
+        '''p_word from PYPState with a memory to store already-seen strings.'''
+        if string in self.character_model:
+            return self.character_model[string]
+        else:
+            #p = ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
+            # Length model
+            length = len(string)
+            if length in self.p_length:
+                p = self.p_length[length]
+            else:
+                p = ((1 - self.p_boundary) ** (length - 1)) * self.p_boundary
+                self.p_length[length] = p # Save
+            # Character model
+            for letter in string:
+                p = p * self.phoneme_ps[letter]
+            #p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
+            self.character_model[string] = p # Save
+            return p
 
     def p_0(self, hier_word):
         # This function has to be after sample_morphemes_in_words.
         p = 1
-        morpheme_list = hier_word.decompose()
+        #morpheme_list = hier_word.decompose() #
         ## sample the word -> access to the decomposition of the word
-        for morpheme in morpheme_list:
+        #for morpheme in morpheme_list:
+        for morpheme in hier_word.morpheme_list:
             p = p * hier_word.p_morph(morpheme, self) #state)
         return p
 
@@ -532,23 +532,6 @@ class HierarchicalUtterance(PYPUtterance): # Information on one utterance of the
         #print('numer_base: ', base)
         return base
 
-    #def numer_base_morph(self, morph, state):
-    #    '''Compute the numerator of the probability of a morpheme'''
-    #    if word not in state.restaurant_m.customers: # If the word is not in the lexicon
-    #        base = 0
-    #    else: # The word is in the lexicon/restaurant
-    #        base = state.restaurant_m.customers[morph] \
-    #               - (state.discount_m * state.restaurant_m.tables[morph])
-    #    base += ((state.discount_m * state.restaurant_m.n_tables) + state.alpha_m) \
-    #            * state.p_word(morph) # uniform unigram character model
-        #print('numer_base: ', base)
-    #    return base
-
-    #def p_morph(self, morpheme, state):
-    #    '''Compute the probability of a morpheme'''
-    #    denom = state.restaurant_m.n_customers + state.alpha_m
-    #    return self.numer_base_morph(morpheme, state) / denom
-
     #def p_0(self, hier_word, state):
     #    # This function has to be after sample_morphemes_in_words.
     #    p = 1
@@ -592,6 +575,10 @@ class HierarchicalUtterance(PYPUtterance): # Information on one utterance of the
         self.left_word.sample_morph(state, temp)
         self.right_word.sample_morph(state, temp)
         self.centre_word.sample_morph(state, temp)
+        # Update morpheme list
+        self.left_word.update_morpheme_list()
+        self.right_word.update_morpheme_list()
+        self.centre_word.update_morpheme_list()
 
     def update_morph_boundaries(self, new_boundaries):
         self.morph_boundaries[(self.prev + 1):(self.next + 1)] = new_boundaries
@@ -685,6 +672,7 @@ class HierarchicalWord(PYPUtterance): # Information on one utterance of the docu
         #self.line_boundaries = [] # Here, morpheme-level boundaries
         self.line_boundaries = boundaries # Here, morpheme-level boundaries
         #self.init_boundary()
+        self.morpheme_list = self.decompose()
 
 
     #def init_boundary(self): # Random case only
@@ -692,19 +680,19 @@ class HierarchicalWord(PYPUtterance): # Information on one utterance of the docu
     #def numer_base(self, word, state):
 
     def numer_base_morph(self, morph, state):
-        '''Compute the numerator of the probability of a morpheme'''
+        '''Compute the numerator of the probability of a morpheme.'''
         if morph not in state.restaurant_m.customers: # If the word is not in the lexicon
             base = 0
         else: # The word is in the restaurant
             base = state.restaurant_m.customers[morph] \
                    - (state.discount_m * state.restaurant_m.tables[morph])
         base += ((state.discount_m * state.restaurant_m.n_tables) + state.alpha_m) \
-                * state.p_word(morph)
+                * state.p_word(morph) # uniform unigram character model
         #print('numer_base: ', base)
         return base
 
     def p_morph(self, morpheme, state):
-        '''Compute the probability of a morpheme'''
+        '''Compute the probability of a morpheme.'''
         denom = state.restaurant_m.n_customers + state.alpha_m
         return self.numer_base_morph(morpheme, state) / denom
 
@@ -719,7 +707,8 @@ class HierarchicalWord(PYPUtterance): # Information on one utterance of the docu
     #def sample_one(self, i, state, temp):
 
     def sample_morph(self, state, temp):
-        utils.check_equality(len(self.line_boundaries), len(self.sentence))
+        utils.check_equality(len(self.line_boundaries), self.sentence_length)
+        #len(self.sentence))
         for i in range(len(self.line_boundaries) - 1):
             self.sample_one_morph(i, state, temp)
             #self.sample_one(i, state, temp)
@@ -781,25 +770,30 @@ class HierarchicalWord(PYPUtterance): # Information on one utterance of the docu
         morpheme_list = []
         beg = 0
         #pos = 0
-        utils.check_equality(len(self.line_boundaries), len(self.sentence))
+        utils.check_equality(len(self.line_boundaries), self.sentence_length)
         #for boundary in self.line_boundaries:
         #    if boundary: # If there is a boundary
         #        morpheme_list.append(self.sentence[beg:(pos + 1)])
         #        beg = pos + 1
         #    pos += 1
-        end = len(self.sentence)
+        end = self.sentence_length
         while beg < end:
             pos = self.line_boundaries.index(1, beg)
             morpheme_list.append(self.sentence[beg:(pos + 1)])
             beg = pos + 1
         return morpheme_list
 
+    def update_morpheme_list(self):
+        self.morpheme_list = self.decompose()
+
     def remove_morphemes(self, restaurant):
-        morpheme_list = self.decompose()
-        for morpheme in morpheme_list:
+        #morpheme_list = self.decompose()
+        assert self.morpheme_list, 'morpheme_list is empty.'
+        for morpheme in self.morpheme_list:
             restaurant.remove_customer(morpheme)
 
     def add_morphemes(self, restaurant):
-        morpheme_list = self.decompose()
-        for morpheme in morpheme_list:
+        #morpheme_list = self.decompose()
+        assert self.morpheme_list, 'morpheme_list is empty.'
+        for morpheme in self.morpheme_list:
             restaurant.add_customer(morpheme)

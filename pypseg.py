@@ -81,14 +81,15 @@ class Restaurant:
 
     def add_customer(self, word):
         '''Assign a customer (word) to a table in the restaurant.'''
-        utils.check_equality(len(self.customers.keys()), len(self.restaurant.keys()))
-        if word in self.restaurant.keys(): # Add the customer to a table (possibly new)
+        ###utils.check_equality(len(self.customers.keys()),
+        ###len(self.restaurant.keys()))###
+        if word in self.restaurant: # Add the customer to a table (possibly new)
             n_customers_w = self.customers[word]
             n_tables_w = self.tables[word]
             random_value = self.random_gen.random()
             new_customer = random_value * self.phi(word)
             #new_customer = random_value * (n_customers_w + self.alpha_1)
-            utils.check_equality(self.tables[word], len(self.restaurant[word]))
+            ###utils.check_equality(self.tables[word], len(self.restaurant[word]))###
             if (new_customer > (n_customers_w - (self.discount * n_tables_w))):
                 # Open a new table
                 self.open_table(word, False)
@@ -126,7 +127,7 @@ class Restaurant:
             n_customers = self.customers[word]
             new_customer = self.random_gen.random() * n_customers
             cumulative_sum = 0
-            utils.check_equality(self.tables[word], len(self.restaurant[word]))
+            ###utils.check_equality(self.tables[word], len(self.restaurant[word]))###
             for k in range(self.tables[word]):
                 cumulative_sum += self.restaurant[word][k]
                 if new_customer <= cumulative_sum: # Add the customer to that table
@@ -206,12 +207,11 @@ class PYPState(State): # Information on the whole document
         #self.word_counts.init_lexicon_text(init_segmented_list)
 
         # Restaurant object to count the number of tables (dict)
-        #self.restaurant = Restaurant(self.alpha_1, self.discount, self, self.seed)
-        #self.restaurant.init_tables(init_segmented_list)
         #print('Restaurant:', self.restaurant.restaurant)
 
         # Alphabet (list of letters)
-        self.alphabet = utils.delete_value_from_vector(list(set(self.unsegmented)), '\n')
+        self.alphabet = utils.delete_value_from_vector(list(
+                            set(self.unsegmented)), '\n')
         self.alphabet_size = len(self.alphabet)
 
         # Phoneme probability (dictionary)
@@ -241,10 +241,11 @@ class PYPState(State): # Information on the whole document
                 * \prod_1^n phoneme(string_i)
         No alpha_1 in this model's function.
         '''
-        p = 1
+        #p = 1
+        p = ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
         for letter in string:
             p = p * self.phoneme_ps[letter]
-        p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
+        #p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
         return p
 
     # Sampling
@@ -281,8 +282,6 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
         base += ((state.discount * state.restaurant.n_tables) + state.alpha_1) \
                 * state.p_word(word)
         #print('numer_base: ', base)
-        #print('new element: ',
-            #(state.discount * state.word_counts.n_types) * state.p_word(word))
         return base
 
     #def left_word(self, i):
@@ -339,13 +338,10 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
             self.line_boundaries[i] = True
             restaurant.add_customer(left) #
             restaurant.add_customer(right) #
-            #utils.check_equality(restaurant.customers[left], lexicon.lexicon[left])
         else:
             #print('No boundary case')
             self.line_boundaries[i] = False
             restaurant.add_customer(centre) #
-            #utils.check_equality(restaurant.customers[centre], lexicon.lexicon[centre])
-
         #utils.check_equality(restaurant.n_customers, lexicon.n_tokens)
 
     #def prev_boundary(self, i):

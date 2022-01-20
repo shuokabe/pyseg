@@ -41,7 +41,7 @@ class Restaurant(Restaurant):
         Modified version due to naive words not being customers.
         '''
         #utils.check_equality(len(self.customers.keys()), len(self.restaurant.keys()))
-        if word in self.restaurant.keys(): # Add the customer to a table (possibly new)
+        if word in self.restaurant: #.keys(): # Add the customer to a table (possibly new)
             n_customers_w = self.customers.get(word, 0)
             if n_customers_w >= 1: # The word is currently in the text
                 #n_customers = self.customers[word]
