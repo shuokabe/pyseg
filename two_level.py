@@ -387,6 +387,13 @@ class HierarchicalTwoLevelState(PYPState): # Information on the whole document
     # Probabilities
     #def p_cont(self):
 
+    def p_cont_morph(self):
+        n_words = self.restaurant_m.n_customers
+        n_utt = self.restaurant.n_customers
+        p = (n_words - n_utt + 1 + self.beta / 2) / (n_words + 1 + self.beta)
+        utils.check_probability(p)
+        return p
+
     def p_word(self, string):
         '''p_word from PYPState with a memory to store already-seen strings.'''
         if string in self.character_model:
@@ -730,7 +737,7 @@ class HierarchicalWord(PYPUtterance): # Information on one utterance of the docu
 
         denom = restaurant.n_customers + state.alpha_m
         #print('denom: ', denom)
-        yes = state.p_cont() * self.numer_base_morph(left, state) \
+        yes = state.p_cont_morph() * self.numer_base_morph(left, state) \
         * (self.numer_base_morph(right, state) + utils.kdelta(left, right)) / (denom + 1)
         #print('yes: ', yes)
         no = self.numer_base_morph(centre, state)
