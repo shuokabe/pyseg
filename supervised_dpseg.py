@@ -45,6 +45,18 @@ class SupervisionHelper():
             logging.info(f' Boundary supervision method: {self.boundary_method:s}, '
                          f'boundary supervision parameter: {self.boundary_parameter:.2f}')
 
+    def supervision_index(self, data_length=0):
+        '''Find the index of the last sentence used for supervision.
+
+        For dense (sentence) boundary supervision only.'''
+        if self.boundary_parameter < 1: # Ratio case
+            supervision_index = int(np.ceil(self.boundary_parameter
+                                    * data_length)) #len(self.unsegmented_list)))
+            print('Supervision index:', supervision_index)
+            return supervision_index
+        else: # Index case
+            return self.boundary_parameter
+
     def set_ngram_character_model(self, state_alphabet):
         # Supervision with a dictionary
         logging.info('Phoneme distribution: dictionary supervision')
@@ -100,6 +112,8 @@ class SupervisionHelper():
         return phoneme_ps
 
     def set_bigram_character_model(self, state_alphabet):
+        logging.info('Phoneme distribution: dictionary supervision')
+        logging.info(' Chosen initialisation method: bigram')
         # Create the bigram distirbution dictionary
         ngrams_in_dict_list = [] # List of ngrams in the supervision data
         for word in self.data.keys():
@@ -166,18 +180,20 @@ class SupervisedState(State): # Information on the whole document
         if self.sup.boundary_method != 'none': # Boundary supervision
             self.sup_boundaries = [] # Stored supervision boundaries
             sup_data_list = utils.text_to_line(data)
-            utils.check_equality(len(self.unsegmented_list), len(sup_data_list))
+            len_unsegmented = len(self.unsegmented_list)
+            utils.check_equality(len_unsegmented, len(sup_data_list))
 
             supervision_bool = False
             if self.sup.boundary_method == 'sentence':
                 supervision_bool = True
-                if self.sup.boundary_parameter < 1: # Ratio case
-                    supervision_index = int(np.ceil(self.sup.boundary_parameter \
-                                            * len(self.unsegmented_list)))
-                    print('Supervision index:', supervision_index)
-                else: # Index case
-                    supervision_index = self.sup.boundary_parameter
-            for i in range(len(self.unsegmented_list)): # rewrite with correct variable names
+                #if self.sup.boundary_parameter < 1: # Ratio case
+                #    supervision_index = int(np.ceil(self.sup.boundary_parameter \
+                #                            * len(self.unsegmented_list)))
+                #    print('Supervision index:', supervision_index)
+                #else: # Index case
+                #    supervision_index = self.sup.boundary_parameter
+                supervision_index = self.sup.supervision_index(len_unsegmented)
+            for i in range(len_unsegmented): # rewrite with correct variable names
                 if (self.sup.boundary_method == 'sentence') \
                     and (i >= supervision_index): # End of supervision
                     supervision_bool = False
@@ -403,7 +419,7 @@ class SupervisedUtterance(Utterance):
 
         self.sup_boundaries = []
         if (self.sup_boundary_method == 'sentence') and not supervision_bool:
-            self.sup_boundaries = [-1] * (len(self.sentence))
+            self.sup_boundaries = [-1] * (self.sentence_length) #len(self.sentence))
         elif (self.sup_boundary_method == 'word'):
             self.sup_data = sup_data
             self.init_word_sup_boundaries()
@@ -417,7 +433,7 @@ class SupervisedUtterance(Utterance):
 
     def init_sup_boundaries(self):
         boundary_track = 0
-        unseg_length = len(self.sentence)
+        unseg_length = self.sentence_length #len(self.sentence)
         #random_state = random.getstate() # Avoid issues with random numbers
         for i in range(unseg_length - 1):
             if self.sup_boundary_method == 'random':
@@ -431,9 +447,9 @@ class SupervisedUtterance(Utterance):
             if self.sup_sentence[boundary_track + 1] == ' ': # Boundary case
                 if self.sup_boundary_method == 'true':
                     rand_val = self.random_gen.random() #random.random()
-                    if rand_val >= self.sup_boundary_parameter:
+                    if rand_val > self.sup_boundary_parameter:
                         self.sup_boundaries.append(-1)
-                        boundary_track += 1
+                        boundary_track += 2 #1
                         continue
                 self.sup_boundaries.append(1)
                 boundary_track += 1

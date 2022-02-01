@@ -142,7 +142,6 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         #self.sup = SupervisionHelper(supervision_data,
         #             supervision_method, supervision_parameter,
         #             supervision_boundary, supervision_boundary_parameter)
-        #self.sup_boundary_parameter = self.sup.boundary_parameter
         self.sup = supervision_helper
         self.sup.supervision_logs()
 
@@ -156,18 +155,14 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         if self.sup.boundary_method != 'none': # Boundary supervision
             self.sup_boundaries = [] # Stored supervision boundaries
             sup_data_list = utils.text_to_line(data)
-            utils.check_equality(len(self.unsegmented_list), len(sup_data_list))
+            len_unsegmented = len(self.unsegmented_list)
+            utils.check_equality(len_unsegmented, len(sup_data_list))
 
             supervision_bool = False
             if self.sup.boundary_method == 'sentence':
                 supervision_bool = True
-                if self.sup.boundary_parameter < 1: # Ratio case
-                    supervision_index = int(np.ceil(self.sup.boundary_parameter
-                                            * len(self.unsegmented_list)))
-                    print('Supervision index:', supervision_index)
-                else: # Index case
-                    supervision_index = self.sup.boundary_parameter
-            for i in range(len(self.unsegmented_list)):
+                supervision_index = self.sup.supervision_index(len_unsegmented)
+            for i in range(len_unsegmented):
                 if (self.sup.boundary_method == 'sentence') \
                     and (i >= supervision_index): # End of supervision
                     supervision_bool = False
@@ -201,12 +196,10 @@ class SupervisedPYPState(PYPState): # Information on the whole document
                 self.utterances.append(utterance)
 
         self.n_utterances = len(self.utterances) # Number of utterances
+        if self.sup.boundary_method != 'none': # Boundary supervision
+            utils.check_equality(len_unsegmented, self.n_utterances)
 
         init_segmented_list = utils.text_to_line(self.get_segmented())
-
-        # Restaurant object to count the number of tables (dict)
-        #self.restaurant = Restaurant(self.alpha_1, self.discount, self.seed)
-        #self.restaurant.init_tables(init_segmented_list)
 
         # Alphabet (list of letters)
         self.alphabet = utils.delete_value_from_vector(list(set(self.unsegmented)), '\n')
@@ -223,7 +216,6 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         # Restaurant object to count the number of tables (dict)
         self.restaurant = Restaurant(self.alpha_1, self.discount, self, self.seed)
         self.restaurant.init_tables(init_segmented_list)
-        #print('Restaurant:', self.restaurant.restaurant)
         logging.debug(f'{self.restaurant.n_tables} tables initially')
 
         if self.sup.method == 'naive':
@@ -241,10 +233,9 @@ class SupervisedPYPState(PYPState): # Information on the whole document
 
         if self.sup.method in ['init_bigram', 'mixture_bigram']:
             # Supervision with a dictionary
-            logging.info('Phoneme distribution: dictionary supervision')
-            chosen_method = 'bigram'
-            logging.info(f' Chosen initialisation method: {chosen_method}')
-
+            #logging.info('Phoneme distribution: dictionary supervision')
+            #chosen_method = 'bigram'
+            #logging.info(f' Chosen initialisation method: {chosen_method}')
             self.phoneme_ps = self.sup.set_bigram_character_model(self.alphabet)
             self.character_model = dict() # Dictionary to speed up the model
 
@@ -342,20 +333,22 @@ class SupervisedPYPUtterance(PYPUtterance):
 
         self.sup_boundaries = []
         if (self.sup_boundary_method == 'sentence') and not supervision_bool:
-            self.sup_boundaries = [-1] * (len(self.sentence))
+            self.sup_boundaries = [-1] * (self.sentence_length) #len(self.sentence))
         elif (self.sup_boundary_method == 'word'):
             self.sup_data = sup_data
             self.init_word_sup_boundaries()
         else:
             self.init_sup_boundaries()
 
-        utils.check_equality(len(self.sentence), len(self.sup_boundaries))
+        #utils.check_equality(len(self.sentence), len(self.sup_boundaries))
+        utils.check_equality(self.sentence_length, len(self.sup_boundaries))
+
 
     #def init_boundary(self): # Random case only
 
     def init_sup_boundaries(self): # From SupervisedUtterance
         boundary_track = 0
-        unseg_length = len(self.sentence)
+        unseg_length = self.sentence_length #len(self.sentence)
         for i in range(unseg_length - 1):
             if self.sup_boundary_method == 'random':
                 rand_val = self.random_gen.random()
@@ -368,9 +361,9 @@ class SupervisedPYPUtterance(PYPUtterance):
             if self.sup_sentence[boundary_track + 1] == ' ': # Boundary case
                 if self.sup_boundary_method == 'true':
                     rand_val = self.random_gen.random()
-                    if rand_val >= self.sup_boundary_parameter:
+                    if rand_val > self.sup_boundary_parameter:
                         self.sup_boundaries.append(-1)
-                        boundary_track += 1
+                        boundary_track += 2 #1
                         continue
                 self.sup_boundaries.append(1)
                 boundary_track += 1

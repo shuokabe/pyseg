@@ -355,8 +355,6 @@ class HierarchicalTwoLevelState(PYPState): # Information on the whole document
 
         self.n_utterances = len(self.utterances) # Number of utterances
 
-        # Lexicon object (Counter)
-        #self.word_counts = Lexicon() # Word counter
         init_segmented_list = utils.text_to_line(self.get_segmented())
 
         # Alphabet (list of letters)
@@ -507,7 +505,7 @@ class HierarchicalUtterance(PYPUtterance): # Information on one utterance of the
         self.line_boundaries = [] # Word-level boundaries
         self.morph_boundaries = [] # Morpheme-level boundaries
         self.init_boundary()
-        self.random_gen = random.Random(seed)
+        self.morph_random_gen = random.Random(seed)
         self.init_morph_boundary()
 
 
@@ -518,7 +516,7 @@ class HierarchicalUtterance(PYPUtterance): # Information on one utterance of the
             if self.line_boundaries[i]:
                 self.morph_boundaries.append(True)
             else:
-                rand_val = self.random_gen.random()
+                rand_val = self.morph_random_gen.random()
                 #rand_val = random.random()
                 if rand_val < self.p_segment:
                     self.morph_boundaries.append(True)
@@ -583,12 +581,40 @@ class HierarchicalUtterance(PYPUtterance): # Information on one utterance of the
         self.right_word.sample_morph(state, temp)
         self.centre_word.sample_morph(state, temp)
         # Update morpheme list
-        self.left_word.update_morpheme_list()
-        self.right_word.update_morpheme_list()
-        self.centre_word.update_morpheme_list()
+        #self.left_word.update_morpheme_list()
+        #self.right_word.update_morpheme_list()
+        #self.centre_word.update_morpheme_list()
+        self.left_word.morpheme_list = self.left_word.decompose()
+        self.right_word.morpheme_list = self.right_word.decompose()
+        self.centre_word.morpheme_list = self.centre_word.decompose()
 
     def update_morph_boundaries(self, new_boundaries):
         self.morph_boundaries[(self.prev + 1):(self.next + 1)] = new_boundaries
+
+    def add_left_and_right(self, state):
+        '''Add the left and right words in the restaurants after sampling.'''
+        #print('Boundary case')
+        new_boundaries = self.left_word.line_boundaries + self.right_word.line_boundaries
+        # Update morpheme boundaries
+        self.update_morph_boundaries(new_boundaries)
+        # Add the selected morphemes in the morpheme restaurant
+        self.left_word.add_morphemes(state.restaurant_m)
+        self.right_word.add_morphemes(state.restaurant_m)
+        # Word-level update
+        #self.line_boundaries[i] = True
+        state.restaurant.add_customer(self.left_word) #
+        state.restaurant.add_customer(self.right_word) #
+
+    def add_centre(self, state):
+        '''Add the centre word in the restaurants after sampling.'''
+        #print('No boundary case')
+        # Update morpheme boundaries
+        self.update_morph_boundaries(self.centre_word.line_boundaries)
+        # Add the selected morphemes in the morpheme restaurant
+        self.centre_word.add_morphemes(state.restaurant_m)
+        # Word-level update
+        #self.line_boundaries[i] = False
+        state.restaurant.add_customer(self.centre_word) #
 
     #def sample(self, state, temp):
 
@@ -642,28 +668,27 @@ class HierarchicalUtterance(PYPUtterance): # Information on one utterance of the
         random_value = random.random()
         if (random_value < p_yes):
             #print('Boundary case')
-            new_boundaries = self.left_word.line_boundaries + self.right_word.line_boundaries
+            #new_boundaries = self.left_word.line_boundaries + self.right_word.line_boundaries
             # Update morpheme boundaries
-            self.update_morph_boundaries(new_boundaries)
+            #self.update_morph_boundaries(new_boundaries)
             # Add the selected morphemes in the morpheme restaurant
-            self.left_word.add_morphemes(state.restaurant_m)
-            self.right_word.add_morphemes(state.restaurant_m)
+            #self.left_word.add_morphemes(state.restaurant_m)
+            #self.right_word.add_morphemes(state.restaurant_m)
             # Word-level update
             self.line_boundaries[i] = True
-            #restaurant.add_customer(left) #
-            #restaurant.add_customer(right) #
-            restaurant.add_customer(self.left_word) #
-            restaurant.add_customer(self.right_word) #
+            #restaurant.add_customer(self.left_word) #
+            #restaurant.add_customer(self.right_word) #
+            self.add_left_and_right(state)
         else:
             #print('No boundary case')
             # Update morpheme boundaries
-            self.update_morph_boundaries(self.centre_word.line_boundaries)
+            #self.update_morph_boundaries(self.centre_word.line_boundaries)
             # Add the selected morphemes in the morpheme restaurant
-            self.centre_word.add_morphemes(state.restaurant_m)
+            #self.centre_word.add_morphemes(state.restaurant_m)
             # Word-level update
             self.line_boundaries[i] = False
-            #restaurant.add_customer(centre) #
-            restaurant.add_customer(self.centre_word) #
+            #restaurant.add_customer(self.centre_word) #
+            self.add_centre(state)
 
     #def prev_boundary(self, i):
 
@@ -714,9 +739,9 @@ class HierarchicalWord(PYPUtterance): # Information on one utterance of the docu
     #def sample_one(self, i, state, temp):
 
     def sample_morph(self, state, temp):
-        utils.check_equality(len(self.line_boundaries), self.sentence_length)
+        ###utils.check_equality(len(self.line_boundaries), self.sentence_length)###
         #len(self.sentence))
-        for i in range(len(self.line_boundaries) - 1):
+        for i in range(self.sentence_length - 1):
             self.sample_one_morph(i, state, temp)
             #self.sample_one(i, state, temp)
 
@@ -777,7 +802,7 @@ class HierarchicalWord(PYPUtterance): # Information on one utterance of the docu
         morpheme_list = []
         beg = 0
         #pos = 0
-        utils.check_equality(len(self.line_boundaries), self.sentence_length)
+        ###utils.check_equality(len(self.line_boundaries), self.sentence_length)###
         #for boundary in self.line_boundaries:
         #    if boundary: # If there is a boundary
         #        morpheme_list.append(self.sentence[beg:(pos + 1)])
@@ -790,8 +815,8 @@ class HierarchicalWord(PYPUtterance): # Information on one utterance of the docu
             beg = pos + 1
         return morpheme_list
 
-    def update_morpheme_list(self):
-        self.morpheme_list = self.decompose()
+    #def update_morpheme_list(self): # Remove?
+    #    self.morpheme_list = self.decompose()
 
     def remove_morphemes(self, restaurant):
         #morpheme_list = self.decompose()

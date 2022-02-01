@@ -15,6 +15,7 @@ from pyseg.analysis import Statistics, evaluate, get_boundaries
 from pyseg.hyperparameter import Concentration_sampling, Hyperparameter_sampling
 from pyseg.nhpylm import NHPYLMState
 from pyseg.two_level import TwoLevelState, HierarchicalTwoLevelState
+from pyseg.supervised_two_level import SupervisedHTLState
 from pyseg import utils
 
 # General setup of libraries
@@ -91,7 +92,7 @@ def parse_args():
     parser.add_argument('--online_iter', default=0, type=int,
                         help='number of iterations for online learning')
 
-    parser.add_argument('--version', action='version', version='1.5.1')
+    parser.add_argument('--version', action='version', version='1.6.0')
 
     return parser.parse_args()
 
@@ -155,9 +156,18 @@ def main():
     elif model_name == 'htl': # Hierarchical Two Level model
         args.sample_hyperparameter = True
         args.discount = 0
-        main_state = HierarchicalTwoLevelState(data, discount = args.discount,
-            alpha_1 = args.alpha_1, p_boundary = args.p_boundary,
-            discount_m = args.discount_m, alpha_m = args.alpha_m, seed = rnd_seed)
+        # If supervision
+        if supervision:
+            main_state = SupervisedHTLState(data,
+                discount = args.discount, alpha_1 = args.alpha_1,
+                p_boundary = args.p_boundary, discount_m = args.discount_m,
+                alpha_m = args.alpha_m, seed = rnd_seed,
+                supervision_helper = supervision_helper)
+        else:
+            main_state = HierarchicalTwoLevelState(data,
+                discount = args.discount, alpha_1 = args.alpha_1,
+                p_boundary = args.p_boundary, discount_m = args.discount_m,
+                alpha_m = args.alpha_m, seed = rnd_seed)
         # Built-in hyperparameter sampling
     elif model_name == 'two_level':
         args.discount = 0

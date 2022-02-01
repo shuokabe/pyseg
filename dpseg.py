@@ -265,7 +265,7 @@ class Utterance: # Information on one utterance of the document
         #if (model_type == 1): # Unigram model
         # Final boundary posn must always be true, so don't sample it. #
         #print('Utterance: ', self.sentence, 'boundary: ', self.line_boundaries)
-        utils.check_equality(len(self.line_boundaries), self.sentence_length)
+        ###utils.check_equality(len(self.line_boundaries), self.sentence_length)###
 
         for i in range(self.sentence_length - 1):
             self.sample_one(i, state, temp)
