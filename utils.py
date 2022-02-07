@@ -1,3 +1,4 @@
+import collections
 import re
 
 # Functions for text data
@@ -82,6 +83,7 @@ def indicator(element, subset):
     #    return 0
     return element in subset # 0 or 1
 
+# Useful functions
 def delete_value_from_vector(vector, value):
     '''Delete a given value from a vector.
 
@@ -128,3 +130,12 @@ def segment_sentence_with_boundaries(sentence, boundaries):
         segmented_list.append(sentence[beg:(pos + 1)])
         beg = pos + 1
     return segmented_list
+
+def count_supervision_boundaries(sup_boundary_list):
+    '''Count the number of supervision boundaries (and some statistics).'''
+    flat_sup_boundaries = flatten_2D(sup_boundary_list)
+    print('Number of boundaries:', len(flat_sup_boundaries))
+    counter_sup_boundaries = collections.Counter(flat_sup_boundaries)
+    print('Counter of boundaries:', counter_sup_boundaries)
+    print('Ratio supervision boundary:', (counter_sup_boundaries[1] +
+           counter_sup_boundaries[0]) / len(flat_sup_boundaries))

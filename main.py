@@ -91,8 +91,11 @@ def parse_args():
                         'is carried out for online learning')
     parser.add_argument('--online_iter', default=0, type=int,
                         help='number of iterations for online learning')
+    parser.add_argument('--htl_level', default='none', type=str,
+                        choices=['none', 'both', 'morpheme', 'word'],
+                        help='Supervision level for the htl model')
 
-    parser.add_argument('--version', action='version', version='1.6.0')
+    parser.add_argument('--version', action='version', version='1.6.1')
 
     return parser.parse_args()
 
@@ -110,7 +113,7 @@ def main():
     data = open(filename, 'r', encoding = 'utf8').read()
     model_name = args.model
 
-    logging.info(f'Segmenting {filename:s} using {model_name:s}\'s unigram model.')
+    logging.info(f'Segmenting {filename:s} using {model_name:s} (unigram model).')
     logging.info('Boundary initialisation: random') #
 
     #set_init(b_init) # Copy from segment.cc
@@ -154,6 +157,23 @@ def main():
             alpha_2 = args.alpha_2, p_boundary = args.p_boundary,
             poisson_parameter = args.poisson_parameter)
     elif model_name == 'htl': # Hierarchical Two Level model
+        if supervision:
+            if (args.htl_level == 'none'):
+            # If no supervision level has been specified, both levels are used.
+                args.htl_level = 'both'
+            level_dict = {'word': 'word', 'morpheme': 'morpheme',
+                          'both': 'word and morpheme'}
+            logging.info('Hierarchical two-level model with '
+                         f'{level_dict[args.htl_level]} supervision')
+            # Particular case for bigram method (dictionary)
+            if (args.supervision_method == 'init_bigram'):
+                if (args.htl_level in ['word']):
+                    supervision_helper.method = 'none' # No dictionary supervision
+                    if (args.supervision_boundary == 'none'):
+                        supervision = False
+            if (args.supervision_method == 'mixture_bigram'):
+                if (args.htl_level in ['word']):
+                    supervision_helper.method = 'mixture' # Equivalent to mixture
         args.sample_hyperparameter = True
         args.discount = 0
         # If supervision
@@ -162,7 +182,8 @@ def main():
                 discount = args.discount, alpha_1 = args.alpha_1,
                 p_boundary = args.p_boundary, discount_m = args.discount_m,
                 alpha_m = args.alpha_m, seed = rnd_seed,
-                supervision_helper = supervision_helper)
+                supervision_helper = supervision_helper,
+                htl_level = args.htl_level)
         else:
             main_state = HierarchicalTwoLevelState(data,
                 discount = args.discount, alpha_1 = args.alpha_1,
@@ -263,7 +284,7 @@ def main():
         if model_name == 'pypseg':
             logging.debug(f'Final value of d: {main_state.discount:.3f}')
         elif model_name == 'htl':
-            logging.debug(f'Final value of alpha: {main_state.alpha_m:.1f}'
+            logging.debug(f'Final value of alpha: {main_state.alpha_m:.1f} '
                           '(morpheme)')
         else:
             pass

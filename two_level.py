@@ -389,7 +389,7 @@ class HierarchicalTwoLevelState(PYPState): # Information on the whole document
         n_words = self.restaurant_m.n_customers
         n_utt = self.restaurant.n_customers
         p = (n_words - n_utt + 1 + self.beta / 2) / (n_words + 1 + self.beta)
-        utils.check_probability(p)
+        ###utils.check_probability(p)###
         return p
 
     def p_word(self, string):
@@ -559,7 +559,7 @@ class HierarchicalUtterance(PYPUtterance): # Information on one utterance of the
         #left = self.left_word(i)
         #right = self.right_word(i)
         #centre = self.centre_word(i)
-        utils.check_value_between(i, 0, self.sentence_length - 1) # No last pos
+        ###utils.check_value_between(i, 0, self.sentence_length - 1) # No last pos###
         left = self.sentence[(self.prev + 1):(i + 1)]
         right = self.sentence[(i + 1):(self.next + 1)]
         centre = self.sentence[(self.prev + 1):(self.next + 1)]
@@ -814,9 +814,6 @@ class HierarchicalWord(PYPUtterance): # Information on one utterance of the docu
             morpheme_list.append(self.sentence[beg:(pos + 1)])
             beg = pos + 1
         return morpheme_list
-
-    #def update_morpheme_list(self): # Remove?
-    #    self.morpheme_list = self.decompose()
 
     def remove_morphemes(self, restaurant):
         #morpheme_list = self.decompose()
