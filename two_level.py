@@ -373,7 +373,7 @@ class HierarchicalTwoLevelState(PYPState): # Information on the whole document
         self.restaurant_m = Restaurant(self.alpha_m, self.discount_m, self, self.seed)
         self.restaurant_m.init_tables(init_segmented_m_list)
         # Restaurant object to count the number of tables (dict)
-        self.restaurant = Restaurant(self.alpha_1, self.discount, self, self.seed)
+        #self.restaurant = Restaurant(self.alpha_1, self.discount, self, self.seed)
         self.restaurant = WordLevelRestaurant(self.alpha_1, self.discount, self, self.seed)
         self.restaurant.init_tables(init_segmented_list, init_segmented_m_list)
         logging.debug(f'{self.restaurant.n_tables} tables initially (word)')

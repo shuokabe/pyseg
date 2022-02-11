@@ -2,6 +2,8 @@ import collections
 import logging
 import random
 
+from scipy.stats import poisson
+
 # Two-level model (word and morpheme)
 
 logging.basicConfig(level = logging.DEBUG, format = '[%(asctime)s] %(message)s',
@@ -201,6 +203,9 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
             if self.htl_level in ['both', 'word']: # Word level supervision
                 print('Use the mixture function in p_0 (word).')
                 self.p_0 = self.mixture_p_0
+                # Length model for words
+                self.word_length_ps = dict()
+                self.init_length_model()
             if self.htl_level in ['both', 'morpheme']: # Morpheme level supervision
                 print('Use the mixture function in p_word (morpheme).')
                 self.p_word = self.mixture_p_word
@@ -235,6 +240,19 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
             logging.info('Phoneme distribution: uniform')
             for letter in self.alphabet:
                 self.phoneme_ps[letter] = 1 / self.alphabet_size
+
+    def init_length_model(self): # Only for mixture models (fails otherwise)
+        '''Length model for words using the Poisson distribution (mixture case).'''
+        max_length = max([len(sent) for sent in self.unsegmented_list])
+        sup_word_length_list = [len(word) for word in self.sup.word_data.keys()]
+        #max_length = max(sup_word_length_list)
+        #word_length_list = [len(word) for word in self.restaurant.restaurant.keys()]
+        #mean_token_length = sum(word_length_list) / len(word_length_list)
+        mean_token_length = sum(sup_word_length_list) / self.n_words_sup
+        print(max_length, mean_token_length)
+        self.word_length_ps = {i: poisson.pmf(i, mean_token_length, loc=1)
+                               for i in range(max_length)}
+        print('word_length:', sum(self.word_length_ps.values())) #self.word_length_ps
 
     # Probabilities
     #def p_cont(self):
@@ -322,7 +340,10 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
         # Exclusive part for mixture supervision
         #if self.sup.method in ['mixture', 'mixture_bigram']: # Mixture function
             #print('p before mixture:', p)
-        p = (1 - self.sup.parameter) * p
+        # With a length model for words (mixture case)
+        length = hier_word.sentence_length
+        p = (1 - self.sup.parameter) * p #* self.word_length_ps[length]
+        #* self.word_length_ps.get(length, 10 ** (-6))
         # n_words_sup for words and sup_data for words
         p += (self.sup.parameter / self.n_words_sup) \
              * utils.indicator(hier_word.sentence, self.sup.word_data)

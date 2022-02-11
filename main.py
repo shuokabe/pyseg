@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import pickle
 import random
+import sys # For remote machines
 from tqdm import tqdm # Progress bar
 
 #from pyseg import dpseg
@@ -95,7 +96,7 @@ def parse_args():
                         choices=['none', 'both', 'morpheme', 'word'],
                         help='Supervision level for the htl model')
 
-    parser.add_argument('--version', action='version', version='1.6.1')
+    parser.add_argument('--version', action='version', version='1.6.2')
 
     return parser.parse_args()
 
@@ -219,7 +220,8 @@ def main():
     hyp_sample = args.sample_hyperparameter
     if hyp_sample:
         logging.info(' Hyperparameter sampled after each iteration.')
-        dpseg = bool(model_name == 'dpseg') # dpseg or pypseg model?
+        # dpseg or pypseg model?
+        dpseg = bool(model_name in ['dpseg', 'htl']) #== 'dpseg')
         # For dpseg only
         #alpha_sample = Concentration_sampling((1, 1), rnd_seed)
         # For both dpseg and pypseg
@@ -281,11 +283,13 @@ def main():
 
     if hyp_sample:
         logging.debug(f'Final value of alpha: {main_state.alpha_1:.1f}')
-        if model_name == 'pypseg':
+        if (model_name == 'pypseg'):
             logging.debug(f'Final value of d: {main_state.discount:.3f}')
         elif model_name == 'htl':
             logging.debug(f'Final value of alpha: {main_state.alpha_m:.1f} '
                           '(morpheme)')
+            print(f'dpseg status: {hyperparam_sample.dpseg}, {morph_hyper_sample.dpseg}')
+            logging.debug(f'Final value of d: {main_state.discount:.15f}')
         else:
             pass
 
