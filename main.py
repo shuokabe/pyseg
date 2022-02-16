@@ -96,7 +96,7 @@ def parse_args():
                         choices=['none', 'both', 'morpheme', 'word'],
                         help='Supervision level for the htl model')
 
-    parser.add_argument('--version', action='version', version='1.6.2')
+    parser.add_argument('--version', action='version', version='1.6.3')
 
     return parser.parse_args()
 
@@ -264,14 +264,14 @@ def main():
                 print(f'Current value of alpha: {main_state.alpha_1:.1f}')
                 if model_name == 'pypseg':
                     print(f'Current value of d: {main_state.discount:.3f}')
-                else:
-                    pass
+                #else:
+                #    pass
 
         main_state.sample(temp)
         if model_name not in ['two_level', 'htl']: #model_name != 'two_level':
             utils.check_n_type_token(main_state, args)
-        else:
-            pass
+        #else:
+        #    pass
         # Hyperparameter sampling
         if hyp_sample:
             #main_state.alpha_1 = alpha_sample.sample_concentration(main_state)
@@ -312,8 +312,8 @@ def main():
                 print(main_state.restaurant.restaurant)
             else:
                 print(main_state.word_counts.lexicon)
-    else:
-        pass
+    #else:
+    #    pass
 
     if model_name == 'nhpylm':
         segmented_text_list = [' '.join(utt.word_list)

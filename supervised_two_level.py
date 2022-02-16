@@ -2,7 +2,7 @@ import collections
 import logging
 import random
 
-from scipy.stats import poisson
+from scipy.stats import expon, poisson
 
 # Two-level model (word and morpheme)
 
@@ -243,6 +243,8 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
 
     def init_length_model(self): # Only for mixture models (fails otherwise)
         '''Length model for words using the Poisson distribution (mixture case).'''
+        length_model = 'poisson' # ['poisson', 'exponential', 'standard']
+        print(f'Length model with {length_model} correction')
         max_length = max([len(sent) for sent in self.unsegmented_list])
         sup_word_length_list = [len(word) for word in self.sup.word_data.keys()]
         #max_length = max(sup_word_length_list)
@@ -250,8 +252,16 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
         #mean_token_length = sum(word_length_list) / len(word_length_list)
         mean_token_length = sum(sup_word_length_list) / self.n_words_sup
         print(max_length, mean_token_length)
-        self.word_length_ps = {i: poisson.pmf(i, mean_token_length, loc=1)
-                               for i in range(max_length)}
+        if length_model == 'poisson':
+            self.word_length_ps = {i: poisson.pmf(i, mean_token_length, loc=1)
+                                   for i in range(max_length)}
+        elif length_model == 'exponential':
+            self.word_length_ps = {i: expon.pdf(i, scale=mean_token_length, loc=1)
+                                   for i in range(max_length)}
+        else: # Standard length model
+            p_b = self.p_boundary
+            self.word_length_ps = {i: (((1 - p_b) ** (i - 1)) * p_b)
+                                   for i in range(max_length)}
         print('word_length:', sum(self.word_length_ps.values())) #self.word_length_ps
 
     # Probabilities
@@ -342,7 +352,7 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
             #print('p before mixture:', p)
         # With a length model for words (mixture case)
         length = hier_word.sentence_length
-        p = (1 - self.sup.parameter) * p #* self.word_length_ps[length]
+        p = (1 - self.sup.parameter) * p * self.word_length_ps[length]
         #* self.word_length_ps.get(length, 10 ** (-6))
         # n_words_sup for words and sup_data for words
         p += (self.sup.parameter / self.n_words_sup) \
@@ -558,10 +568,10 @@ class SupervisedHierUtterance(HierarchicalUtterance): #PYPUtterance):
     def sample_one(self, i, state, temp):
         restaurant = state.restaurant #
 
-        if self.line_boundaries[i] == self.sup_boundaries[i]:
-            return # No sampling if correct boundary status
-        else:
-            pass
+        #if self.line_boundaries[i] == self.sup_boundaries[i]:
+        #    return # No sampling if correct boundary status
+        #else:
+        #    pass
         #left = self.left_word(i)
         #right = self.right_word(i)
         #centre = self.centre_word(i)
@@ -584,6 +594,15 @@ class SupervisedHierUtterance(HierarchicalUtterance): #PYPUtterance):
             self.centre_word.remove_morphemes(state.restaurant_m)
         # Sample morphemes
         self.sample_morphemes_in_words(state, temp)
+
+        if self.line_boundaries[i] == self.sup_boundaries[i]:
+            if self.sup_boundaries[i] == 1:
+                self.add_left_and_right(state)
+            else: # self.sup_boundaries[i] == 0
+                self.add_centre(state)
+            return # No sampling if correct boundary status
+        #else:
+        #    pass
 
         # Supervision
         if self.sup_boundaries[i] == 1:
@@ -675,8 +694,8 @@ class SupervisedHierWord(HierarchicalWord): #PYPUtterance):
     def sample_one_morph(self, i, state, temp):
         if self.line_boundaries[i] == self.sup_boundaries[i]:
             return # No sampling if correct boundary status
-        else:
-            pass
+        #else:
+        #    pass
 
         restaurant = state.restaurant_m # Morpheme level restaurant
         left = self.left_word(i)

@@ -62,8 +62,8 @@ class Restaurant(Restaurant):
                         if new_customer <= cumulative_sum: # Add the customer to that table
                             self.restaurant[word][k] += 1
                             break
-                        else:
-                            pass
+                        #else:
+                        #    pass
                 self.customers[word] += 1
             else: # Word from the naive dictionary and not in text
                 # There is only one table with no real customer
@@ -104,8 +104,8 @@ class Restaurant(Restaurant):
                         self.restaurant[word][k + 1] += self.restaurant[word][k]
                         self.close_table(word, k, False)
                     break
-                else:
-                    pass
+                #else:
+                #    pass
             #utils.check_equality(self.customers.get(word, n_customers - 1), n_customers - 1)
         self.n_customers += -1
 
@@ -301,8 +301,8 @@ class SupervisedPYPState(PYPState): # Information on the whole document
             #print('p before length:', p)
         #    p = p * self.word_length_ps.get(len(string), 10 ** (-5))
             #print('p after length:', p)
-        else:
-            pass
+        #else:
+        #    pass
         return p
 
     # Sampling
