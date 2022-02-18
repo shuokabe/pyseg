@@ -365,6 +365,8 @@ class HierarchicalTwoLevelState(PYPState): # Information on the whole document
         self.phoneme_ps = dict()
         #self.init_probs() # How to initialise the boundaries (here: random)
         self.init_phoneme_probs()
+        self.word_length_ps = dict() # Test
+        self.init_length_model() # Test
 
         # Morpheme restaurant
         init_segmented_m_list = utils.text_to_line(self.get_segmented_morph())
@@ -381,6 +383,21 @@ class HierarchicalTwoLevelState(PYPState): # Information on the whole document
 
 
     #def init_phoneme_probs(self):
+
+    def init_length_model(self): # Test
+        '''Length model for word-level P_0.'''
+        print(f'Standard length model')
+        max_length = max([len(sent) for sent in self.unsegmented_list])
+        #sup_word_length_list = [len(word) for word in self.sup.word_data.keys()]
+        #max_length = max(sup_word_length_list)
+        #word_length_list = [len(word) for word in self.restaurant.restaurant.keys()]
+        #mean_token_length = sum(word_length_list) / len(word_length_list)
+        #mean_token_length = sum(sup_word_length_list) / self.n_words_sup
+        #print(max_length, mean_token_length)
+        p_b = self.p_boundary
+        self.word_length_ps = {i: (((1 - p_b) ** (i - 1)) * p_b)
+                               for i in range(max_length)}
+        print('word_length:', sum(self.word_length_ps.values())) #self.word_length_ps
 
     # Probabilities
     #def p_cont(self):
@@ -420,7 +437,8 @@ class HierarchicalTwoLevelState(PYPState): # Information on the whole document
         #for morpheme in morpheme_list:
         for morpheme in hier_word.morpheme_list:
             p = p * hier_word.p_morph(morpheme, self) #state)
-        return p
+        length = hier_word.sentence_length
+        return p * self.word_length_ps[length]
 
     # Sampling
     #def sample(self, temp):

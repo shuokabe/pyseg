@@ -194,6 +194,8 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
         self.phoneme_ps = dict()
         #self.init_probs() # How to initialise the boundaries (here: random)
         self.init_phoneme_probs()
+        self.word_length_ps = dict() # Test
+        self.init_length_model() # Test
 
         # Mixture function
         if self.sup.method in ['mixture', 'mixture_bigram']:
@@ -206,6 +208,7 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
                 # Length model for words
                 self.word_length_ps = dict()
                 self.init_length_model()
+                #self.init_length_model()
             if self.htl_level in ['both', 'morpheme']: # Morpheme level supervision
                 print('Use the mixture function in p_word (morpheme).')
                 self.p_word = self.mixture_p_word
@@ -241,17 +244,19 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
             for letter in self.alphabet:
                 self.phoneme_ps[letter] = 1 / self.alphabet_size
 
-    def init_length_model(self): # Only for mixture models (fails otherwise)
+    def init_length_model(self, length_model='standard'):
+        # Only for mixture models (fails otherwise)
         '''Length model for words using the Poisson distribution (mixture case).'''
-        length_model = 'poisson' # ['poisson', 'exponential', 'standard']
+        #length_model = 'standard' # ['poisson', 'exponential', 'standard']
         print(f'Length model with {length_model} correction')
         max_length = max([len(sent) for sent in self.unsegmented_list])
-        sup_word_length_list = [len(word) for word in self.sup.word_data.keys()]
+        if length_model != 'standard': # Needs a dictionary
+            sup_word_length_list = [len(word) for word in self.sup.word_data.keys()]
         #max_length = max(sup_word_length_list)
         #word_length_list = [len(word) for word in self.restaurant.restaurant.keys()]
         #mean_token_length = sum(word_length_list) / len(word_length_list)
-        mean_token_length = sum(sup_word_length_list) / self.n_words_sup
-        print(max_length, mean_token_length)
+            mean_token_length = sum(sup_word_length_list) / self.n_words_sup
+            print(max_length, mean_token_length)
         if length_model == 'poisson':
             self.word_length_ps = {i: poisson.pmf(i, mean_token_length, loc=1)
                                    for i in range(max_length)}
