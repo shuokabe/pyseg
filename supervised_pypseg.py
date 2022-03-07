@@ -139,9 +139,6 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         random_gen_sup = random.Random(self.seed)
 
         # Supervision helper
-        #self.sup = SupervisionHelper(supervision_data,
-        #             supervision_method, supervision_parameter,
-        #             supervision_boundary, supervision_boundary_parameter)
         self.sup = supervision_helper
         self.sup.supervision_logs()
 
@@ -340,7 +337,6 @@ class SupervisedPYPUtterance(PYPUtterance):
         else:
             self.init_sup_boundaries()
 
-        #utils.check_equality(len(self.sentence), len(self.sup_boundaries))
         utils.check_equality(self.sentence_length, len(self.sup_boundaries))
 
 

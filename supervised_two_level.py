@@ -125,7 +125,6 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
         random_gen_sup = random.Random(self.seed)
 
         # Supervision helper
-        #self.sup = SupervisionHelper(supervision_helper)
         self.sup = supervision_helper
         self.htl_level = htl_level
         if self.sup.method != 'none': # Dictionary supervision
@@ -669,7 +668,6 @@ class SupervisedHierWord(HierarchicalWord): #PYPUtterance):
         #self.p_segment = p_segment
         #utils.check_probability(p_segment)
         self.sentence_length = len(self.sentence)
-        #self.line_boundaries = [] # Here, morpheme-level boundaries
         self.line_boundaries = boundaries # Here, morpheme-level boundaries
         self.sup_boundaries = sup_boundaries # Supervision boundaries
         #self.init_boundary()

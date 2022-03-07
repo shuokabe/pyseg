@@ -123,15 +123,7 @@ class State: # Information on the whole document
 
 
     # Initialisation
-    #def init_probs(self): #
-        #for u in self.utterances:
-            #words = u.get_reference_words() #
-            #for w in words:
-                #true_words_ps += [w] # unknown
-        # Normalise: give empirical prob over unigrams
-        #for w in true_words_ps:
-            #ntokens = true_words_ps.ntokens()
-        #self.init_phoneme_probs()
+    #def init_probs(self):
 
     def init_phoneme_probs(self):
         '''
@@ -186,15 +178,7 @@ class State: # Information on the whole document
             #segmented_line_list = []
             unsegmented_line = self.unsegmented_list[i]
             boundaries_line = self.utterances[i].line_boundaries
-            #beg = 0
-            #pos = 0
             #utils.check_equality(len(boundaries_line), len(unsegmented_line))
-            ##utils.check_equality(len(self.boundaries[i]), len(unsegmented_line))
-            #for boundary in boundaries_line:
-            #    if boundary: # If there is a boundary
-            #        segmented_line_list += [unsegmented_line[beg:(pos + 1)]]
-            #        beg = pos + 1
-            #    pos += 1
             segmented_line_list = utils.segment_sentence_with_boundaries(
                 unsegmented_line, boundaries_line)
             # Convert list of words into a string sentence

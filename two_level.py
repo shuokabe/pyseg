@@ -23,7 +23,7 @@ class TwoLevelState(State):
         self.data_morph = utils.morpheme_gold_segment(raw_data, True) # Morpheme level
 
         # Two-level sampling order
-        self.word_then_morph = False
+        self.word_then_morph = True # False
         logging.info('Two-level model')
         if self.word_then_morph:
             logging.info(' Sampling words and then morphemes')
@@ -51,7 +51,7 @@ class TwoLevelState(State):
                 self.set_two_level_supervision_dictionary()
             word_supervision_helper = SupervisionHelper(self.word_sup_data,
                 self.sup.method, self.sup.parameter, self.sup.boundary_method,
-                self.sup.boundary_parameter, verbose = False)
+                self.sup.boundary_parameter) #, verbose = False)
             morph_supervision_helper = SupervisionHelper(self.morph_sup_data,
                 self.sup.method, self.sup.parameter, self.sup.boundary_method,
                 self.sup.boundary_parameter, verbose = False)
@@ -80,7 +80,7 @@ class TwoLevelState(State):
     def set_two_level_supervision_dictionary(self):
         '''Create two supervision dictionaries for the corresponding levels.'''
         raw_sup_word = ' '.join(list(self.sup.data.keys()))
-        print('gold sup dict', self.sup.data, len(self.sup.data))
+        #print('gold sup dict', self.sup.data, len(self.sup.data))
         sup_word_list = utils.line_to_word(
                             utils.morpheme_gold_segment(raw_sup_word, False))
         #print('sup word list', sup_word_list)
@@ -108,18 +108,14 @@ class TwoLevelState(State):
             #lexicon.remove_one(left)
             #lexicon.remove_one(right)
         else: # No boundary at the i-th position ('no' case)
-            #lexicon = state.word_counts
             restaurant = state.restaurant #
             left = utterance.left_word(i)
             right = utterance.right_word(i)
             centre = utterance.centre_word(i)
             # Remove the word
-            #lexicon.remove_one(centre)
             restaurant.remove_customer(centre) #
             # Add the words
             utterance.line_boundaries[i] = True
-            #lexicon.add_one(left)
-            #lexicon.add_one(right)
             restaurant.add_customer(left) #
             restaurant.add_customer(right) #
 
@@ -132,16 +128,16 @@ class TwoLevelState(State):
             pass
             #lexicon.remove_one(left)
             #lexicon.remove_one(right)
-        else: # No boundary at the i-th position ('no' case)
+        else: # Boundary at the i-th position ('yes' case)
             restaurant = state.restaurant #
             left = utterance.left_word(i)
             right = utterance.right_word(i)
             centre = utterance.centre_word(i)
-            # Remove the word
+            # Remove the words
             #restaurant.remove_customer(centre) #
             restaurant.remove_customer(left) #
             restaurant.remove_customer(right) #
-            # Add the words
+            # Add the word
             utterance.line_boundaries[i] = False
             #restaurant.add_customer(left) #
             #restaurant.add_customer(right) #
@@ -586,7 +582,7 @@ class HierarchicalUtterance(PYPUtterance): # Information on one utterance of the
         #(not i + 1 beacuse of final True)
         left_m_boundaries.append(True)
         right_m_boundaries = self.morph_boundaries[(i + 1):(self.next + 1)] # Check values
-        centre_m_boundaries = self.morph_boundaries[(self.prev + 1):(self.next + 1)] # Check values
+        centre_m_boundaries = self.morph_boundaries[(self.prev + 1):(self.next + 1)] # Check
         self.left_word = HierarchicalWord(left, left_m_boundaries)
         self.right_word = HierarchicalWord(right, right_m_boundaries)
         self.centre_word = HierarchicalWord(centre, centre_m_boundaries)
@@ -684,26 +680,12 @@ class HierarchicalUtterance(PYPUtterance): # Information on one utterance of the
         no = no ** temp
         p_yes = yes / (yes + no)
         random_value = random.random()
-        if (random_value < p_yes):
-            #print('Boundary case')
-            #new_boundaries = self.left_word.line_boundaries + self.right_word.line_boundaries
-            # Update morpheme boundaries
-            #self.update_morph_boundaries(new_boundaries)
-            # Add the selected morphemes in the morpheme restaurant
-            #self.left_word.add_morphemes(state.restaurant_m)
-            #self.right_word.add_morphemes(state.restaurant_m)
-            # Word-level update
+        if (random_value < p_yes): # Boundary case
             self.line_boundaries[i] = True
             #restaurant.add_customer(self.left_word) #
             #restaurant.add_customer(self.right_word) #
             self.add_left_and_right(state)
-        else:
-            #print('No boundary case')
-            # Update morpheme boundaries
-            #self.update_morph_boundaries(self.centre_word.line_boundaries)
-            # Add the selected morphemes in the morpheme restaurant
-            #self.centre_word.add_morphemes(state.restaurant_m)
-            # Word-level update
+        else: # No boundary case
             self.line_boundaries[i] = False
             #restaurant.add_customer(self.centre_word) #
             self.add_centre(state)
@@ -719,7 +701,6 @@ class HierarchicalWord(PYPUtterance): # Information on one utterance of the docu
         #self.p_segment = p_segment
         #utils.check_probability(p_segment)
         self.sentence_length = len(self.sentence)
-        #self.line_boundaries = [] # Here, morpheme-level boundaries
         self.line_boundaries = boundaries # Here, morpheme-level boundaries
         #self.init_boundary()
         self.morpheme_list = self.decompose()

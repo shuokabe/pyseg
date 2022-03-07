@@ -1,7 +1,6 @@
 import argparse
 import logging
 #import numpy as np
-#import pickle
 import random
 from tqdm import tqdm # Progress bar
 import types

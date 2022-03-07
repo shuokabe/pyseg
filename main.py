@@ -6,6 +6,10 @@ import random
 import sys # For remote machines
 from tqdm import tqdm # Progress bar
 
+# All the packages:
+#argparse, collections, logging, math, numpy, pickle, random, re, scipy, sys
+#tqdm, types
+
 #from pyseg import dpseg
 from pyseg.dpseg import State
 from pyseg.pypseg import PYPState
