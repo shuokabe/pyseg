@@ -25,6 +25,7 @@ Here are the parameters that can be used:
 - `iterations` (or -i): the number of iterations (100 by default)
 - `output_file_base` (or -o): the output base filename (output by default, i.e. the output file will be called output.txt)
 - `rnd_seed` (or -r): the random seed (42 by default)
+- `sample_hyperparameter` (or -s): the boolean parameter for hyperparameter sampling (False by default)
 
 Supervision parameter arguments:
 - `supervision_file`: the file name of the data used for supervision (pickle dictionary)

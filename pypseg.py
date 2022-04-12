@@ -68,7 +68,8 @@ class Restaurant:
         self.discount = discount
 
         self.state = state
-        self.random_gen = random.Random(seed) # Avoid issues with main random numbers
+        # Avoid issues with main random numbers
+        self.random_gen = random.Random(seed)
 
     def phi(self, word):
         '''numer_base function from PYPUtterance.
@@ -88,7 +89,6 @@ class Restaurant:
             n_tables_w = self.tables[word]
             random_value = self.random_gen.random()
             new_customer = random_value * self.phi(word)
-            #new_customer = random_value * (n_customers_w + self.alpha_1)
             ###utils.check_equality(self.tables[word], len(self.restaurant[word]))###
             if (new_customer > (n_customers_w - (self.discount * n_tables_w))):
                 # Open a new table
@@ -97,7 +97,8 @@ class Restaurant:
                 cumulative_sum = 0
                 for k in range(n_tables_w):
                     cumulative_sum += (self.restaurant[word][k] - self.discount)
-                    if new_customer <= cumulative_sum: # Add the customer to that table
+                    if new_customer <= cumulative_sum:
+                        # Add the customer to that table
                         self.restaurant[word][k] += 1
                         break
                     else:
@@ -230,7 +231,8 @@ class PYPState(State): # Information on the whole document
     # Probabilities
     def p_cont(self):
         n_words = self.restaurant.n_customers
-        p = (n_words - self.n_utterances + 1 + self.beta / 2) / (n_words + 1 + self.beta)
+        p = (n_words - self.n_utterances + 1 + self.beta / 2) / \
+            (n_words + 1 + self.beta)
         utils.check_probability(p)
         return p
 
@@ -241,11 +243,9 @@ class PYPState(State): # Information on the whole document
                 * \prod_1^n phoneme(string_i)
         No alpha_1 in this model's function.
         '''
-        #p = 1
         p = ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
         for letter in string:
             p = p * self.phoneme_ps[letter]
-        #p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
         return p
 
     # Sampling
@@ -269,10 +269,9 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
     #def init_boundary(self): # Random case only
 
     def numer_base(self, word, state):
-        #if word not in state.word_counts.lexicon: # If the word is not in the lexicon
-        if word not in state.restaurant.customers: # If the word is not in the lexicon
+        if word not in state.restaurant.customers: # Not in the restaurant
             base = 0
-        else: # The word is in the lexicon/restaurant
+        else: # The word is in the restaurant
             #base = state.word_counts.lexicon[word]
             #- (state.discount * state.restaurant.tables[word])
             base = state.restaurant.customers[word] \
@@ -304,11 +303,9 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
             #print('yes case')
             restaurant.remove_customer(left) #
             restaurant.remove_customer(right) #
-            #print(left, lexicon.lexicon[left], right, lexicon.lexicon[right])
         else: # No boundary at the i-th position ('no' case)
             #print('no case')
             restaurant.remove_customer(centre) #
-            #print(centre, lexicon.lexicon[centre])
         #random.setstate(random_state)
 
         denom = restaurant.n_customers + state.alpha_1
@@ -342,7 +339,6 @@ class PYPUtterance(Utterance): # Information on one utterance of the document
             #print('No boundary case')
             self.line_boundaries[i] = False
             restaurant.add_customer(centre) #
-        #utils.check_equality(restaurant.n_customers, lexicon.n_tokens)
 
     #def prev_boundary(self, i):
 

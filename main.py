@@ -21,6 +21,8 @@ from pyseg.hyperparameter import Concentration_sampling, Hyperparameter_sampling
 from pyseg.nhpylm import NHPYLMState
 from pyseg.two_level import TwoLevelState, HierarchicalTwoLevelState
 from pyseg.supervised_two_level import SupervisedHTLState
+from pyseg.alternative_htl import (UnigramHierarchicalTwoLevelState,
+SupervisedUnigramHTLState)
 from pyseg import utils
 
 # General setup of libraries
@@ -46,7 +48,7 @@ def parse_args():
     parser.add_argument('filename', type=str, help='path to file')
     parser.add_argument('-m', '--model', default='dpseg', type=str,
                         choices=['dpseg', 'pypseg', 'nhpylm', 'two_level',
-                        'htl'],  help='model name')
+                        'htl', 'uni_htl'],  help='model name')
     parser.add_argument('-a', '--alpha_1', default=20, type=int,
                         help='concentration parameter for unigram DP')
     parser.add_argument('-b', '--p_boundary', default=0.5, type=float,
@@ -161,7 +163,7 @@ def main():
         main_state = NHPYLMState(data, alpha_1 = args.alpha_1,
             alpha_2 = args.alpha_2, p_boundary = args.p_boundary,
             poisson_parameter = args.poisson_parameter)
-    elif model_name == 'htl': # Hierarchical Two Level model
+    elif model_name in ['htl', 'uni_htl']: # Hierarchical Two Level model
         if supervision:
             if (args.htl_level == 'none'):
             # If no supervision level has been specified, both levels are used.
@@ -183,17 +185,31 @@ def main():
         args.discount = 0
         # If supervision
         if supervision:
-            main_state = SupervisedHTLState(data,
-                discount = args.discount, alpha_1 = args.alpha_1,
-                p_boundary = args.p_boundary, discount_m = args.discount_m,
-                alpha_m = args.alpha_m, seed = rnd_seed,
-                supervision_helper = supervision_helper,
-                htl_level = args.htl_level)
+            if model_name == 'htl':
+                main_state = SupervisedHTLState(data,
+                    discount = args.discount, alpha_1 = args.alpha_1,
+                    p_boundary = args.p_boundary, discount_m = args.discount_m,
+                    alpha_m = args.alpha_m, seed = rnd_seed,
+                    supervision_helper = supervision_helper,
+                    htl_level = args.htl_level)
+            else: # 'uni_htl'
+                main_state = SupervisedUnigramHTLState(data,
+                    discount = args.discount, alpha_1 = args.alpha_1,
+                    p_boundary = args.p_boundary, discount_m = args.discount_m,
+                    alpha_m = args.alpha_m, seed = rnd_seed,
+                    supervision_helper = supervision_helper,
+                    htl_level = args.htl_level)
         else:
-            main_state = HierarchicalTwoLevelState(data,
-                discount = args.discount, alpha_1 = args.alpha_1,
-                p_boundary = args.p_boundary, discount_m = args.discount_m,
-                alpha_m = args.alpha_m, seed = rnd_seed)
+            if model_name == 'htl':
+                main_state = HierarchicalTwoLevelState(data,
+                    discount = args.discount, alpha_1 = args.alpha_1,
+                    p_boundary = args.p_boundary, discount_m = args.discount_m,
+                    alpha_m = args.alpha_m, seed = rnd_seed)
+            else: # 'uni_htl'
+                main_state = UnigramHierarchicalTwoLevelState(data,
+                    discount = args.discount, alpha_1 = args.alpha_1,
+                    p_boundary = args.p_boundary, discount_m = args.discount_m,
+                    alpha_m = args.alpha_m, seed = rnd_seed)
         # Built-in hyperparameter sampling
     elif model_name == 'two_level':
         args.discount = 0
@@ -225,13 +241,13 @@ def main():
     if hyp_sample:
         logging.info(' Hyperparameter sampled after each iteration.')
         # dpseg or pypseg model?
-        dpseg = bool(model_name in ['dpseg', 'htl']) #== 'dpseg')
+        dpseg = bool(model_name in ['dpseg', 'htl', 'uni_htl']) #== 'dpseg')
         # For dpseg only
         #alpha_sample = Concentration_sampling((1, 1), rnd_seed)
         # For both dpseg and pypseg
         hyperparam_sample = Hyperparameter_sampling((1, 1), (1, 1),
                                                     rnd_seed, dpseg)
-        if model_name == 'htl':
+        if model_name in ['htl', 'uni_htl']: #== 'htl':
             morph_hyper_sample = Hyperparameter_sampling((1, 1), (1, 1),
                 rnd_seed, dpseg, morph=True)
     if args.online != 'none':
@@ -272,7 +288,7 @@ def main():
                 #    pass
 
         main_state.sample(temp)
-        if model_name not in ['two_level', 'htl']: #model_name != 'two_level':
+        if model_name not in ['two_level', 'htl', 'uni_htl']:
             utils.check_n_type_token(main_state, args)
         #else:
         #    pass
@@ -281,7 +297,7 @@ def main():
             #main_state.alpha_1 = alpha_sample.sample_concentration(main_state)
             main_state.alpha_1, main_state.discount = \
                     hyperparam_sample.sample_hyperparameter(main_state)
-            if model_name == 'htl':
+            if model_name in ['htl', 'uni_htl']: #== 'htl':
                 main_state.alpha_m, main_state.discount_m = \
                         morph_hyper_sample.sample_hyperparameter(main_state)
 
@@ -289,10 +305,11 @@ def main():
         logging.debug(f'Final value of alpha: {main_state.alpha_1:.1f}')
         if (model_name == 'pypseg'):
             logging.debug(f'Final value of d: {main_state.discount:.3f}')
-        elif model_name == 'htl':
+        elif model_name in ['htl', 'uni_htl']:
             logging.debug(f'Final value of alpha: {main_state.alpha_m:.1f} '
                           '(morpheme)')
-            print(f'dpseg status: {hyperparam_sample.dpseg}, {morph_hyper_sample.dpseg}')
+            print(f'dpseg status: {hyperparam_sample.dpseg}, '
+                  f'{morph_hyper_sample.dpseg}')
             logging.debug(f'Final value of d: {main_state.discount:.15f}')
         else:
             pass
@@ -324,7 +341,7 @@ def main():
                                for utt in main_state.utterances]
         segmented_text = '\n'.join(segmented_text_list)
         segmented_text.replace('$', '')
-    elif model_name in ['two_level', 'htl']: #model_name == 'two_level':
+    elif model_name in ['two_level', 'htl', 'uni_htl']: #model_name == 'two_level':
         if model_name == 'two_level':
             word_segmented_text = main_state.word_state.get_segmented()
             morph_segmented_text = main_state.morph_state.get_segmented()

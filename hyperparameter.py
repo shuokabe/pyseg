@@ -45,7 +45,8 @@ class Concentration_sampling:
         new_b = self.b_prior - math.log(eta) # Scale parameter
         pi_eta = new_a / (new_a + (n * new_b))
         gamma_1 = self.random_gen.gamma(self.a_prior + k, new_b)
-        #gamma_1 = gamma.rvs(self.a_prior + k, scale = new_b, random_state = self.random_gen)
+        #gamma_1 = gamma.rvs(self.a_prior + k, scale = new_b,
+        #        random_state = self.random_gen)
         gamma_2 = self.random_gen.gamma(new_a, new_b)
         #gamma_2 = gamma.rvs(new_a, scale = new_b, random_state = self.random_gen)
         new_alpha = pi_eta * gamma_1 + (1 - pi_eta) * gamma_2

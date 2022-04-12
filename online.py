@@ -33,13 +33,7 @@ logging.getLogger().addHandler(filelog)
 
 # Online learning
 #def loss(gold, segmented):
-#    '''Loss function to compare boundaries during online learning.'''
-#    n = len(gold) # The last boundary is always True
-#    utils.check_equality(n + 1, len(segmented))
-#    loss = 0
-#    for i in range(n):
-#        loss += (gold[i] - segmented[i]) ** 2
-#    return loss / n
+#    return loss / n # Same as count_correction
 
 def count_correction(gold, segmented):
     '''Loss function to compare boundaries during online learning.'''
@@ -166,7 +160,8 @@ def online_learning(data, state, args, temp):
             #print('segmented_line', segmented_line)
             gold_line = utils.line_to_word(split_gold[i])
             #print('gold line', gold_line)
-            if (on.model_name == 'pypseg') or on.hyp_sample: #(args.sample_hyperparameter): #
+            if (on.model_name == 'pypseg') or on.hyp_sample:
+                #(args.sample_hyperparameter): #
                 for word in segmented_line:
                     state.restaurant.remove_customer(word)
                 for word in gold_line:

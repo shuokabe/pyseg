@@ -106,7 +106,6 @@ class Restaurant(Restaurant):
                     break
                 #else:
                 #    pass
-            #utils.check_equality(self.customers.get(word, n_customers - 1), n_customers - 1)
         self.n_customers += -1
 
     #def open_table(self, word, new_word=False):
@@ -218,7 +217,8 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         if self.sup.method == 'naive':
             for word, frequency in self.sup.data.items():
                 self.restaurant.add_naive_word(word, self.sup.parameter)
-            #print(f'{self.sup_method.capitalize()} restaurant:', self.restaurant.restaurant)
+            #print(f'{self.sup_method.capitalize()} restaurant:',
+            #self.restaurant.restaurant)
 
 
     def init_phoneme_probs(self):
@@ -230,9 +230,7 @@ class SupervisedPYPState(PYPState): # Information on the whole document
 
         if self.sup.method in ['init_bigram', 'mixture_bigram']:
             # Supervision with a dictionary
-            #logging.info('Phoneme distribution: dictionary supervision')
             #chosen_method = 'bigram'
-            #logging.info(f' Chosen initialisation method: {chosen_method}')
             self.phoneme_ps = self.sup.set_bigram_character_model(self.alphabet)
             self.character_model = dict() # Dictionary to speed up the model
 
@@ -275,11 +273,6 @@ class SupervisedPYPState(PYPState): # Information on the whole document
         # Character model
         if self.sup.method in ['init_bigram', 'init_trigram', 'mixture_bigram']:
             #if self.sup_method in ['init_bigram', 'mixture_bigram']:
-            #n_ngram = 2
-            #considered_word = f'<{string:s}>'
-            #for i in range(len(considered_word) - n_ngram + 1):
-            #    ngram = considered_word[i:(i + n_ngram)]
-            #    p = p * self.phoneme_ps[ngram]
             p = self.p_bigram_character_model(string)
         else: # Unigram case
             for letter in string:

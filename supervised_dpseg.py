@@ -286,15 +286,15 @@ class SupervisedState(State): # Information on the whole document
             print('words in dict_str:', words_in_dict_str[0:50])
             total_frequence = sum(word_length_dict.values())
             mean_token_length = sum([word_length * frequency
-                                     for word_length, frequency in word_length_dict.items()]
+                        for word_length, frequency in word_length_dict.items()]
                                 ) / total_frequence
             print('mean TL:', mean_token_length)
             if (chosen_method == 'empirical'):
                 self.word_length_ps = {word_length: frequency / total_frequence
-                                       for word_length, frequency in word_length_dict.items()}
+                        for word_length, frequency in word_length_dict.items()}
             else:
                 self.word_length_ps = {i: poisson.pmf(i, mean_token_length, loc=1)
-                                       for i in range(max(word_length_dict.keys()))}
+                        for i in range(max(word_length_dict.keys()))}
             print('word_length:', self.word_length_ps, sum(self.word_length_ps.values()))
 
             # TODO: make the different cases clearer (and more efficient)
@@ -303,16 +303,18 @@ class SupervisedState(State): # Information on the whole document
 
             # TODO: deal with the case letters_in_dict[letter] == 0
             #if chosen_method == 'length':
-            #    self.phoneme_ps = {letter: 1 / self.alphabet_size for letter in self.alphabet}
-            #else:
-            #    self.phoneme_ps = {letter: letters_in_dict[letter] / frequency_letters_dict
+            #    self.phoneme_ps = {letter: 1 / self.alphabet_size
             #                       for letter in self.alphabet}
+            #else:
+            #    self.phoneme_ps = {letter: letters_in_dict[letter] / \
+            #                frequency_letters_dict for letter in self.alphabet}
 
             for letter in self.alphabet:
                 if chosen_method == 'length':
                     self.phoneme_ps[letter] = 1 / self.alphabet_size
                 else:
-                    self.phoneme_ps[letter] = letters_in_dict[letter] / frequency_letters_dict
+                    self.phoneme_ps[letter] = letters_in_dict[letter] / \
+                                              frequency_letters_dict
             #assert (abs(sum(self.phoneme_ps.values()) - 1.0) < 10^(-5)),
             #        'The sum of the probabilities is not 1.'
             print(f'Sum of probabilities: {sum(self.phoneme_ps.values())}')
@@ -377,8 +379,8 @@ class SupervisedState(State): # Information on the whole document
         if self.sup.method in ['mixture', 'mixture_bigram']:
             #print('p before mixture:', p)
             #n_words_dict = sum(self.sup_data.values())
-            #p = self.sup_parameter / n_words_dict * utils.indicator(string, self.sup_data) \
-            #    + (1 - self.sup_parameter) * p
+            #p = self.sup_parameter / n_words_dict * \
+            #utils.indicator(string, self.sup_data) + (1 - self.sup_parameter) * p
             p = (1 - self.sup.parameter) * p
             p += (self.sup.parameter / self.n_words_sup) \
                   * utils.indicator(string, self.sup.data)

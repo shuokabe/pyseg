@@ -21,9 +21,6 @@ from pyseg import utils
 
 class SupervisionHelper(SupervisionHelper):
     '''Class to handle supervision. Two-level supervision case.'''
-    #def __init__(self, supervision_data=None, supervision_method='none',
-    #             supervision_parameter=0, supervision_boundary='none',
-    #             supervision_boundary_parameter=0, verbose=True):
     def __init__(self, supervision_helper):
         # Supervision variable
         self.data = supervision_helper.data # dictionary or text file

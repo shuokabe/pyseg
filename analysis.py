@@ -185,7 +185,7 @@ def evaluate(reference, segmented):
     segmented_stats = Statistics(segmented)
 
     reference_list = utils.text_to_line(reference)
-    segmented_list = utils.text_to_line(segmented) 
+    segmented_list = utils.text_to_line(segmented)
     utils.check_equality(len(reference_list), len(segmented_list))
 
     ref_boundaries = get_boundaries(reference_list)
@@ -220,14 +220,8 @@ def evaluate(reference, segmented):
     lf = f_measure(lp, lr)
 
     eval = dict(
-            BP = 100 * bp,
-            BR = 100 * br,
-            BF = 100 * bf,
-            WP = 100 * wp,
-            WR = 100 * wr,
-            WF = 100 * wf,
-            LP = 100 * lp,
-            LR = 100 * lr,
-            LF = 100 * lf
+            BP = 100 * bp, BR = 100 * br, BF = 100 * bf,
+            WP = 100 * wp, WR = 100 * wr, WF = 100 * wf,
+            LP = 100 * lp, LR = 100 * lr, LF = 100 * lf
     )
     return eval

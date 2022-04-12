@@ -6,7 +6,6 @@ def unsegmented(text): # Raw string
     '''Return the unsegmented version of a raw text (string).'''
     return text.replace(' ', '')
 
-
 # Splitting functions
 def text_to_line(raw_text):
     r'''Split a raw text into a list of sentences (string) according to '\n'.'''
@@ -17,7 +16,7 @@ def text_to_line(raw_text):
         return split_text
 
 def line_to_word(raw_line):
-    '''Split a raw sentence into a list of words (string) according to whitespace.'''
+    '''Split a sentence into a list of words (string) according to whitespace.'''
     return re.split(' ', raw_line)
 
 def add_EOS(text_list):
@@ -27,10 +26,6 @@ def add_EOS(text_list):
 # Checking functions
 def check_probability(prob):
     '''Check that the given value is a probability.'''
-    #if ((prob >= 0) and (prob <= 1)):
-    #    pass
-    #else:
-    #    raise ValueError(f'{prob} must be between 0 and 1 to be a probability.')
     assert ((prob >= 0) and (prob <= 1)), (f'{prob} must be '
             'between 0 and 1 to be a probability.')
 
@@ -76,11 +71,7 @@ def kdelta(i, j):
     return (i == j) # 0 or 1
 
 def indicator(element, subset):
-    '''Indicator function: return 1 if the element is in the subset, 0 otherwise.'''
-    #if element in subset:
-    #    return 1
-    #else:
-    #    return 0
+    '''Indicator function: return 1 if element is in the subset, 0 otherwise.'''
     return element in subset # 0 or 1
 
 # Useful functions
