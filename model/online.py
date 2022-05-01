@@ -6,10 +6,10 @@ from tqdm import tqdm # Progress bar
 import types
 
 #from pyseg import dpseg
-from pyseg.dpseg import State
-from pyseg.pypseg import PYPState
-from pyseg.supervised_dpseg import SupervisionHelper, SupervisedState
-from pyseg.supervised_pypseg import SupervisedPYPState
+from pyseg.model.dpseg import State
+from pyseg.model.pypseg import PYPState
+from pyseg.model.supervised_dpseg import SupervisionHelper, SupervisedState
+from pyseg.model.supervised_pypseg import SupervisedPYPState
 from pyseg.analysis import Statistics, evaluate, get_boundaries
 from pyseg.hyperparameter import Hyperparameter_sampling
 from pyseg import utils

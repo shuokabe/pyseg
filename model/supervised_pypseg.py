@@ -11,8 +11,8 @@ logging.basicConfig(level = logging.DEBUG, format = '[%(asctime)s] %(message)s',
                     datefmt = '%d/%m/%Y %H:%M:%S')
 
 
-from pyseg.pypseg import Restaurant, PYPState, PYPUtterance
-from pyseg.supervised_dpseg import SupervisionHelper
+from pyseg.model.pypseg import Restaurant, PYPState, PYPUtterance
+from pyseg.model.supervised_dpseg import SupervisionHelper
 
 
 # Exclusive to pypseg to count the number of tables

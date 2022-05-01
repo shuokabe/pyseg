@@ -7,10 +7,10 @@ import random
 logging.basicConfig(level = logging.DEBUG, format = '[%(asctime)s] %(message)s',
                     datefmt = '%d/%m/%Y %H:%M:%S')
 
-from pyseg.dpseg import State
-from pyseg.pypseg import Restaurant, PYPState, PYPUtterance
-from pyseg.supervised_dpseg import SupervisionHelper, SupervisedState
-from pyseg.supervised_pypseg import SupervisedPYPState
+from pyseg.model.dpseg import State
+from pyseg.model.pypseg import Restaurant, PYPState, PYPUtterance
+from pyseg.model.supervised_dpseg import SupervisionHelper, SupervisedState
+from pyseg.model.supervised_pypseg import SupervisedPYPState
 from pyseg.hyperparameter import Hyperparameter_sampling
 from pyseg import utils
 

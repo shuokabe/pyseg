@@ -11,18 +11,18 @@ from tqdm import tqdm # Progress bar
 #tqdm, types
 
 #from pyseg import dpseg
-from pyseg.dpseg import State
-from pyseg.pypseg import PYPState
-from pyseg.supervised_dpseg import SupervisionHelper, SupervisedState
-from pyseg.supervised_pypseg import SupervisedPYPState
-from pyseg.online import online_learning
+from pyseg.model.dpseg import State
+from pyseg.model.pypseg import PYPState
+from pyseg.model.supervised_dpseg import SupervisionHelper, SupervisedState
+from pyseg.model.supervised_pypseg import SupervisedPYPState
+from pyseg.model.online import online_learning
 from pyseg.analysis import Statistics, evaluate, get_boundaries
 from pyseg.hyperparameter import Concentration_sampling, Hyperparameter_sampling
-from pyseg.nhpylm import NHPYLMState
-from pyseg.two_level import TwoLevelState, HierarchicalTwoLevelState
-from pyseg.supervised_two_level import SupervisedHTLState
-from pyseg.alternative_htl import (UnigramHierarchicalTwoLevelState,
-SupervisedUnigramHTLState)
+from pyseg.model.nhpylm import NHPYLMState
+from pyseg.model.two_level import TwoLevelState, HierarchicalTwoLevelState
+from pyseg.model.supervised_two_level import SupervisedHTLState
+#from pyseg.alternative_htl import (UnigramHierarchicalTwoLevelState,
+#SupervisedUnigramHTLState)
 from pyseg import utils
 
 # General setup of libraries

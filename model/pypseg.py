@@ -10,7 +10,7 @@ logging.basicConfig(level = logging.DEBUG, format = '[%(asctime)s] %(message)s',
                     datefmt = '%d/%m/%Y %H:%M:%S')
 
 
-from pyseg.dpseg import Lexicon, State, Utterance
+from pyseg.model.dpseg import Lexicon, State, Utterance
 
 # Exclusive to pypseg to count the number of tables
 class Restaurant:

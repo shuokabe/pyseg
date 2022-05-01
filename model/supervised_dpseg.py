@@ -12,7 +12,7 @@ from pyseg import utils
 logging.basicConfig(level = logging.DEBUG, format = '[%(asctime)s] %(message)s',
                     datefmt = '%d/%m/%Y %H:%M:%S')
 
-from pyseg.dpseg import Lexicon, State, Utterance
+from pyseg.model.dpseg import Lexicon, State, Utterance
 
 
 class SupervisionHelper():
