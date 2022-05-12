@@ -21,7 +21,7 @@ from pyseg.hyperparameter import Concentration_sampling, Hyperparameter_sampling
 from pyseg.model.nhpylm import NHPYLMState
 from pyseg.model.two_level import TwoLevelState, HierarchicalTwoLevelState
 from pyseg.model.supervised_two_level import SupervisedHTLState
-#from pyseg.alternative_htl import (UnigramHierarchicalTwoLevelState,
+#from pyseg.unigram_htl import (UnigramHierarchicalTwoLevelState,
 #SupervisedUnigramHTLState)
 from pyseg import utils
 
@@ -102,7 +102,7 @@ def parse_args():
                         choices=['none', 'both', 'morpheme', 'word'],
                         help='Supervision level for the htl model')
 
-    parser.add_argument('--version', action='version', version='1.6.3')
+    parser.add_argument('--version', action='version', version='1.7.0')
 
     return parser.parse_args()
 

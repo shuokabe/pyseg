@@ -57,9 +57,12 @@ Moreover, here, the output file will not be called output.txt but sup_pydpseg.tx
 ## Citation
 If you use pyseg, please use the following citation (temporary bibtex):
 ```
-@misc{pyseg2022,
-    title = {pyseg}
-    author = {authors},
-    year = {2022}
+@inproceedings{Okabe22weakly,
+	author = {Okabe, Shu and Besacier, Laurent and Yvon, Fran{\c c}ois},
+	booktitle = "Proceedings of the 60th Annual Meeting of the Association for Computational Linguistics",
+	Publisher = {Association for Computational Linguistics},
+	title = {{Weakly Supervised Word Segmentation for Computational Language Documentation}},
+	Year = {2022},
+	address = {Dublin, Ireland}
 }
 ```
