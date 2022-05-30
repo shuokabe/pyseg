@@ -222,16 +222,11 @@ class WordLevelRestaurant(Restaurant):
 
     def phi(self, hier_word):
         '''numer_base function from HierarchicalUtterance.'''
-        #base += ((self.discount * self.n_tables) + self.alpha_1) \
-        #        * self.state.p_word(word)
+        # The word is necessarily in the restaurant
         word = hier_word.sentence
-        # Position is used to find the boundary section
-        #if word not in state.restaurant.customers: # If the word is not in the lexicon
-        #    base = 0
-        #else: # The word is in the lexicon/restaurant
         base = self.customers[word] - (self.discount * self.tables[word])
         base += ((self.discount * self.n_tables) + self.alpha_1) \
-                * self.state.p_0(hier_word) #, self.state) # here, not p_word()
+                * self.state.p_0(hier_word) # here, not p_word()
         return base
 
     def add_customer(self, hier_word):
@@ -394,7 +389,7 @@ class HierarchicalTwoLevelState(PYPState): # Information on the whole document
         p_b = self.p_boundary
         self.word_length_ps = {i: (((1 - p_b) ** (i - 1)) * p_b)
                                for i in range(max_length)}
-        print('word_length:', sum(self.word_length_ps.values())) #self.word_length_ps
+        print(f'word_length: {sum(self.word_length_ps.values())}')
 
     # Probabilities
     #def p_cont(self):
@@ -596,9 +591,6 @@ class HierarchicalUtterance(PYPUtterance): # Information on one utterance of the
         self.right_word.sample_morph(state, temp)
         self.centre_word.sample_morph(state, temp)
         # Update morpheme list
-        #self.left_word.update_morpheme_list()
-        #self.right_word.update_morpheme_list()
-        #self.centre_word.update_morpheme_list()
         self.left_word.morpheme_list = self.left_word.decompose()
         self.right_word.morpheme_list = self.right_word.decompose()
         self.centre_word.morpheme_list = self.centre_word.decompose()

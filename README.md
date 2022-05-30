@@ -55,14 +55,19 @@ python3 pyseg/main.py -m dpseg -i 1000 -o sup_pydpseg -r 42 --dictionary_file di
 Moreover, here, the output file will not be called output.txt but sup_pydpseg.txt.
 
 ## Citation
-If you use pyseg, please use the following citation (temporary bibtex):
+If you use pyseg, please use the following citation (from ACL Anthology):
 ```
 @inproceedings{Okabe22weakly,
-	author = {Okabe, Shu and Besacier, Laurent and Yvon, Fran{\c c}ois},
-	booktitle = "Proceedings of the 60th Annual Meeting of the Association for Computational Linguistics",
-	Publisher = {Association for Computational Linguistics},
-	title = {{Weakly Supervised Word Segmentation for Computational Language Documentation}},
-	Year = {2022},
-	address = {Dublin, Ireland}
+	title = "Weakly Supervised Word Segmentation for Computational Language Documentation",
+    author = "Okabe, Shu  and
+      Besacier, Laurent  and
+      Yvon, Fran{\c{c}}ois",
+    booktitle = "Proceedings of the 60th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)",
+    month = may,
+    year = "2022",
+    address = "Dublin, Ireland",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2022.acl-long.510",
+    pages = "7385--7398"
 }
 ```

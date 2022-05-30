@@ -6,6 +6,8 @@ import random
 import sys # For remote machines
 from tqdm import tqdm # Progress bar
 
+#sys.path.append('/') # For remote machines
+
 # All the packages:
 #argparse, collections, logging, math, numpy, pickle, random, re, scipy, sys
 #tqdm, types
@@ -21,7 +23,12 @@ from pyseg.hyperparameter import Concentration_sampling, Hyperparameter_sampling
 from pyseg.model.nhpylm import NHPYLMState
 from pyseg.model.two_level import TwoLevelState, HierarchicalTwoLevelState
 from pyseg.model.supervised_two_level import SupervisedHTLState
-#from pyseg.unigram_htl import (UnigramHierarchicalTwoLevelState,
+#from pyseg.model.unigram_htl import (UnigramHierarchicalTwoLevelState,
+#SupervisedUnigramHTLState)
+from pyseg.model.alternative_htl import (AlternativeHierarchicalTwoLevelState,
+SimpleAltHierarchicalTwoLevelState)
+from pyseg.model.supervised_alt_htl import (SupervisedSimpleAltHTLState,
+SimpleAltHierarchicalTwoLevelState)
 #SupervisedUnigramHTLState)
 from pyseg import utils
 
@@ -48,7 +55,8 @@ def parse_args():
     parser.add_argument('filename', type=str, help='path to file')
     parser.add_argument('-m', '--model', default='dpseg', type=str,
                         choices=['dpseg', 'pypseg', 'nhpylm', 'two_level',
-                        'htl', 'uni_htl'],  help='model name')
+                        'htl', 'uni_htl', 'alt_htl', 'sim_htl'],
+                        help='model name')
     parser.add_argument('-a', '--alpha_1', default=20, type=int,
                         help='concentration parameter for unigram DP')
     parser.add_argument('-b', '--p_boundary', default=0.5, type=float,
@@ -100,9 +108,11 @@ def parse_args():
                         help='number of iterations for online learning')
     parser.add_argument('--htl_level', default='none', type=str,
                         choices=['none', 'both', 'morpheme', 'word'],
-                        help='Supervision level for the htl model')
+                        help='supervision level for the htl model')
 
-    parser.add_argument('--version', action='version', version='1.7.0')
+    parser.add_argument('--just_seg', default=False, type=bool,
+                        help='just segment the text (no evaluation)')
+    parser.add_argument('--version', action='version', version='1.9.0')
 
     return parser.parse_args()
 
@@ -163,7 +173,7 @@ def main():
         main_state = NHPYLMState(data, alpha_1 = args.alpha_1,
             alpha_2 = args.alpha_2, p_boundary = args.p_boundary,
             poisson_parameter = args.poisson_parameter)
-    elif model_name in ['htl', 'uni_htl']: # Hierarchical Two Level model
+    elif model_name in ['htl', 'uni_htl', 'alt_htl', 'sim_htl']: # Hierarchical Two Level model
         if supervision:
             if (args.htl_level == 'none'):
             # If no supervision level has been specified, both levels are used.
@@ -192,6 +202,20 @@ def main():
                     alpha_m = args.alpha_m, seed = rnd_seed,
                     supervision_helper = supervision_helper,
                     htl_level = args.htl_level)
+            elif model_name == 'alt_htl':
+                main_state = SupervisedHTLState(data,
+                    discount = args.discount, alpha_1 = args.alpha_1,
+                    p_boundary = args.p_boundary, discount_m = args.discount_m,
+                    alpha_m = args.alpha_m, seed = rnd_seed,
+                    supervision_helper = supervision_helper,
+                    htl_level = args.htl_level)
+            elif model_name == 'sim_htl':
+                main_state = SupervisedSimpleAltHTLState(data,
+                    discount = args.discount, alpha_1 = args.alpha_1,
+                    p_boundary = args.p_boundary, discount_m = args.discount_m,
+                    alpha_m = args.alpha_m, seed = rnd_seed,
+                    supervision_helper = supervision_helper,
+                    htl_level = args.htl_level)
             else: # 'uni_htl'
                 main_state = SupervisedUnigramHTLState(data,
                     discount = args.discount, alpha_1 = args.alpha_1,
@@ -202,6 +226,16 @@ def main():
         else:
             if model_name == 'htl':
                 main_state = HierarchicalTwoLevelState(data,
+                    discount = args.discount, alpha_1 = args.alpha_1,
+                    p_boundary = args.p_boundary, discount_m = args.discount_m,
+                    alpha_m = args.alpha_m, seed = rnd_seed)
+            elif model_name == 'alt_htl':
+                main_state = AlternativeHierarchicalTwoLevelState(data,
+                    discount = args.discount, alpha_1 = args.alpha_1,
+                    p_boundary = args.p_boundary, discount_m = args.discount_m,
+                    alpha_m = args.alpha_m, seed = rnd_seed)
+            elif model_name == 'sim_htl':
+                main_state = SimpleAltHierarchicalTwoLevelState(data,
                     discount = args.discount, alpha_1 = args.alpha_1,
                     p_boundary = args.p_boundary, discount_m = args.discount_m,
                     alpha_m = args.alpha_m, seed = rnd_seed)
@@ -341,7 +375,7 @@ def main():
                                for utt in main_state.utterances]
         segmented_text = '\n'.join(segmented_text_list)
         segmented_text.replace('$', '')
-    elif model_name in ['two_level', 'htl', 'uni_htl']: #model_name == 'two_level':
+    elif model_name in ['two_level', 'htl', 'uni_htl', 'alt_htl', 'sim_htl']:
         if model_name == 'two_level':
             word_segmented_text = main_state.word_state.get_segmented()
             morph_segmented_text = main_state.morph_state.get_segmented()
@@ -382,11 +416,14 @@ def main():
     logging.info('Statistics: %s' % (stats.stats))
 
     # Evaluation results
-    results = evaluate(data, segmented_text)
-    logging.info('Evaluation metrics: %s' % results)
+    if args.just_seg: # If just segmenting (e.g., when there is no gold text)
+        pass
+    else:
+        results = evaluate(data, segmented_text)
+        logging.info('Evaluation metrics: %s' % results)
 
     # For boundary supervision with segmented sentences
-    if args.supervision_boundary == 'sentence':
+    if args.supervision_boundary == 'sentence' and not args.just_seg:
         logging.info('Without the given sentences:')
         split_gold = utils.text_to_line(data)
         split_seg = utils.text_to_line(segmented_text)

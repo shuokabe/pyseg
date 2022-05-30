@@ -1,8 +1,7 @@
-import collections
 import logging
 import random
 
-from scipy.stats import expon, poisson
+from scipy.stats import norm
 
 # Two-level model (word and morpheme)
 
@@ -10,112 +9,20 @@ logging.basicConfig(level = logging.DEBUG, format = '[%(asctime)s] %(message)s',
                     datefmt = '%d/%m/%Y %H:%M:%S')
 
 #from pyseg.dpseg import State
-from pyseg.model.pypseg import Restaurant, PYPState, PYPUtterance
-from pyseg.model.supervised_dpseg import SupervisionHelper, SupervisedState
-from pyseg.model.supervised_pypseg import SupervisedPYPState
-from pyseg.model.two_level import (WordLevelRestaurant, HierarchicalTwoLevelState,
-    HierarchicalUtterance, HierarchicalWord)
-from pyseg.hyperparameter import Hyperparameter_sampling
+#from pyseg.model.pypseg import Restaurant #, PYPState, PYPUtterance
+from pyseg.model.two_level import (HierarchicalTwoLevelState, HierarchicalUtterance,
+WordLevelRestaurant, HierarchicalWord)
+from pyseg.model.supervised_two_level import (TwoLevelSupervisionHelper,
+SupervisedHTLState, SupervisedHierUtterance)
+from pyseg.model.alternative_htl import (AltWordLevelRestaurant,
+MorphemeLevelRestaurant, SimpleSeenWordsAndSeg,
+SimpleAltHierarchicalTwoLevelState, SimpleAltHierUtterance,
+SimpleAltHierarchicalWord)
 from pyseg import utils
 
 
-class TwoLevelSupervisionHelper(SupervisionHelper):
-    '''Class to handle supervision. Two-level supervision case.'''
-    def __init__(self, supervision_helper):
-        # Supervision variable
-        self.data = supervision_helper.data # dictionary or text file
-        self.word_data = {}
-        self.morph_data = {}
-        self.adapt_sup_dictionaries()
-        self.method = supervision_helper.method
-        self.parameter = supervision_helper.parameter
-        self.boundary_method = supervision_helper.boundary_method
-        self.boundary_parameter = supervision_helper.boundary_parameter
-
-        self.verbose = supervision_helper.verbose
-
-        # Two-level segmentation (morpheme)
-        #if self.boundary_method == 'morpheme':
-        #    self.boundary_parameter = 1.0
-
-        if self.method in ['mixture', 'mixture_bigram']:
-            # Total number of word types in the supervision dictionary
-            self.n_words_sup = len(self.word_data)
-            self.morph_n_words_sup = len(self.morph_data)
-
-
-    def adapt_sup_dictionaries(self):
-        '''Create two levels of the supervision dictionary for each level.'''
-        word_sup_dictionary_keys = []
-        morph_sup_dictionary_keys = []
-        for key, value in self.data.items():
-            word_key = utils.morpheme_gold_segment(key, False)
-            morpheme_key = utils.line_to_word(utils.morpheme_gold_segment(key, True))
-            word_sup_dictionary_keys.extend([word_key] * value)
-            morph_sup_dictionary_keys.extend(morpheme_key * value)
-        self.word_data = collections.Counter(word_sup_dictionary_keys)
-        self.morph_data = collections.Counter(morph_sup_dictionary_keys)
-
-    #def supervision_logs(self):
-
-    #def supervision_index(self, data_length=0):
-
-    #def set_ngram_character_model(self, state_alphabet):
-
-    def set_bigram_character_model(self, state_alphabet, level='word'):
-        logging.info(f'For the {level} level:')
-        logging.info('Phoneme distribution: dictionary supervision')
-        logging.info(' Chosen initialisation method: bigram')
-        # Create the bigram distirbution dictionary
-        ngrams_in_dict_list = [] # List of ngrams in the supervision data
-        #if level == 'word':
-        #    supervision_dictionary = self.word_data
-        #else: # level == 'morpheme'
-        supervision_dictionary = self.morph_data
-        #for word in self.data.keys():
-        for word in supervision_dictionary.keys():
-            considered_word = f'<{word:s}>'
-            word_ngram_list = [considered_word[i:(i + 2)]
-                               for i in range(len(considered_word) - 1)]
-            ngrams_in_dict_list += word_ngram_list
-        ngrams_in_dict = collections.Counter(ngrams_in_dict_list)
-
-        # List of ngrams without the last letter
-        letters_in_dict_list = [ngram[0] for ngram in ngrams_in_dict_list]
-        letters_in_dict = collections.Counter(letters_in_dict_list)
-        print('letters in dict', letters_in_dict)
-        all_letters = state_alphabet + ['<', '>']
-        #print(all_letters)
-        list_all_ngram = [f'{first:s}{second:s}'
-                          for first in all_letters for second in all_letters]
-
-        # Smoothing
-        epsilon = 0.01 # Smoothing parameter
-        smooth_denominator = epsilon * (len(all_letters))
-        #print('Smooth denominator:', smooth_denominator)
-        phoneme_ps = dict()
-        for ngram in list_all_ngram: #ngrams_in_dict.keys():
-            phoneme_ps[ngram] = (ngrams_in_dict[ngram] + epsilon) \
-                        / (letters_in_dict[ngram[0]] + smooth_denominator)
-        #print('Ngram dictionary: {0}'.format(self.phoneme_ps))
-        return phoneme_ps
-
-    def mixture_word(self, string, p):
-        '''Word-level mixture function for p_0'''
-        p = (1 - self.parameter) * p
-        p += (self.parameter / self.n_words_sup) \
-              * utils.indicator(string, self.word_data)
-        return p
-
-    def mixture_morph(self, string, p):
-        '''Morpheme-level mixture function for p_word'''
-        p = (1 - self.parameter) * p
-        p += (self.parameter / self.morph_n_words_sup) \
-              * utils.indicator(string, self.morph_data)
-        return p
-
-
-class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
+# Simpler version of the alternative HTL model
+class SupervisedSimpleAltHTLState(SimpleAltHierarchicalTwoLevelState):
     # Information on the whole document
     def __init__(self, data, discount, alpha_1, p_boundary, discount_m,
                  alpha_m, seed=42, supervision_helper=None, htl_level='none'):
@@ -158,6 +65,11 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
         # Variable to store alphabet, utterance, and lexicon information
         self.utterances = [] # Stored Utterance objects
 
+        # # Exclusive to atlHTL
+        self.n_words_for_morph = 0 # For p_cont_morph
+        self.seen_word_seg = SimpleSeenWordsAndSeg()
+        self.segmented_m_list = [] # Morphemes to add in the morpheme restaurant
+
         if self.sup.boundary_method != 'none': # Boundary supervision
             self.sup_boundaries = [] # Stored supervision boundaries
             self.morph_sup_boundaries = [] #
@@ -177,11 +89,12 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
                 unseg_line = self.unsegmented_list[i]
                 sup_line = sup_data_list[i]
                 morph_sup_line = morph_sup_data_list[i]
-                utterance = SupervisedHierUtterance(
+                utterance = SupervisedSimpleAltHierUtterance(
                     unseg_line, sup_line, morph_sup_line, self.p_boundary,
                     random_gen_sup, self.sup.boundary_method,
                     self.sup.boundary_parameter, supervision_bool,
                     self.htl_level)
+                self.init_morpheme_level_boundaries(utterance) #
                 self.utterances.append(utterance)
                 self.sup_boundaries.append(utterance.sup_boundaries)
                 self.morph_sup_boundaries.append(utterance.morph_sup_boundaries)
@@ -189,10 +102,13 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
             # Count number of supervision boundaries
             utils.count_supervision_boundaries(self.sup_boundaries)
             utils.count_supervision_boundaries(self.morph_sup_boundaries)
+
         else: # Dictionary supervision (or no supervision) case
-            for unseg_line in self.unsegmented_list: # rewrite with correct variable names
-                utterance = HierarchicalUtterance(unseg_line, self.p_boundary,
-                                                  seed)
+            for unseg_line in self.unsegmented_list:
+                utterance = SimpleAltHierUtterance(unseg_line, self.p_boundary, seed)
+                # Morpheme-level boundary initialisation for altHTL
+                # Instead of init_morph_boundary()
+                self.init_morpheme_level_boundaries(utterance)
                 self.utterances.append(utterance)
 
         self.n_utterances = len(self.utterances) # Number of utterances
@@ -209,20 +125,16 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
         self.phoneme_ps = dict()
         #self.init_probs() # How to initialise the boundaries (here: random)
         self.init_phoneme_probs()
-        self.word_length_ps = dict() # Test # Length model for words
-        self.init_length_model() # Test
+        self.word_length_ps = dict()
+        self.morpheme_length_ps = dict() # Exclusive to the altHTL model
+        self.init_length_models() # Test: length modelS (plural)
 
         # Mixture function
         if self.sup.method in ['mixture', 'mixture_bigram']:
             # Total number of words in the supervision dictionary
-            #self.n_words_sup = self.sup.n_words_sup
-            #self.morph_n_words_sup = self.sup.morph_n_words_sup
             if self.htl_level in ['both', 'word']: # Word level supervision
                 print('Use the mixture function in p_0 (word).')
                 self.p_0 = self.mixture_p_0
-                # Length model for words
-                #self.word_length_ps = dict()
-                #self.init_length_model()
             if self.htl_level in ['both', 'morpheme']: # Morpheme level supervision
                 print('Use the mixture function in p_word (morpheme).')
                 self.p_word = self.mixture_p_word
@@ -230,15 +142,28 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
         # Morpheme restaurant
         init_segmented_m_list = utils.text_to_line(self.get_segmented_morph())
         self.character_model = dict() # For P(morpheme) (string probability)
-        self.p_length = dict()
-        self.restaurant_m = Restaurant(self.alpha_m, self.discount_m, self, self.seed)
-        self.restaurant_m.init_tables(init_segmented_m_list)
+        #self.p_length = dict() # test
+        self.restaurant_m = MorphemeLevelRestaurant(self.alpha_m,
+                            self.discount_m, self, self.seed)
+        self.restaurant_m.init_tables(self.segmented_m_list) #init_segmented_m_list)
         # Restaurant object to count the number of tables (dict)
-        #self.restaurant = Restaurant(self.alpha_1, self.discount, self, self.seed)
-        self.restaurant = WordLevelRestaurant(self.alpha_1, self.discount, self, self.seed)
+        self.restaurant = AltWordLevelRestaurant(
+                                self.alpha_1, self.discount, self, self.seed)
         self.restaurant.init_tables(init_segmented_list, init_segmented_m_list)
         logging.debug(f'{self.restaurant.n_tables} tables initially (word)')
         logging.debug(f'{self.restaurant_m.n_tables} tables initially (morpheme)')
+        logging.debug(f'{self.restaurant.n_customers} tokens initially (word)')
+        logging.debug(f'{self.restaurant_m.n_customers} tokens initially (morpheme)')
+
+        #for word, segmentations in self.seen_words_and_seg.items():
+        #    seen_segmentations = self.seen_words_and_seg[word]
+        #    self.seen_words_and_seg[word] = list(set(seen_segmentations))
+        #print(f'unique seen_words_and_seg {self.seen_words_and_seg}')
+        #print(f'unique seen_words_and_seg {self.seen_word_seg.word_seg}')
+        #utils.check_equality(set(self.seen_words_and_seg.keys()),
+        #                    set(self.seen_word_seg.word_seg.keys()))
+        #utils.check_equality(set(self.seen_words_and_seg.keys()),
+        #                    set(self.restaurant.customers.keys()))
 
 
     def init_phoneme_probs(self):
@@ -258,35 +183,77 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
             for letter in self.alphabet:
                 self.phoneme_ps[letter] = 1 / self.alphabet_size
 
-    def init_length_model(self, length_model='standard'):
-        # Only for mixture models (fails otherwise)
-        '''Length model for words using the Poisson distribution (mixture case).'''
-        #length_model = 'standard' # ['poisson', 'exponential', 'standard']
-        print(f'Length model with {length_model} correction')
-        max_length = max([len(sent) for sent in self.unsegmented_list])
-        if length_model != 'standard': # Needs a dictionary
-            sup_word_length_list = [len(word) for word in self.sup.word_data.keys()]
-        #max_length = max(sup_word_length_list)
-        #word_length_list = [len(word) for word in self.restaurant.restaurant.keys()]
-        #mean_token_length = sum(word_length_list) / len(word_length_list)
-            mean_token_length = sum(sup_word_length_list) / self.sup.n_words_sup
-            print(max_length, mean_token_length)
-        if length_model == 'poisson':
-            self.word_length_ps = {i: poisson.pmf(i, mean_token_length, loc=1)
-                                   for i in range(max_length)}
-        elif length_model == 'exponential':
-            self.word_length_ps = {i: expon.pdf(i, scale=mean_token_length, loc=1)
-                                   for i in range(max_length)}
-        else: # Standard length model
-            p_b = self.p_boundary
-            self.word_length_ps = {i: (((1 - p_b) ** (i - 1)) * p_b)
-                                   for i in range(max_length)}
-        print('word_length:', sum(self.word_length_ps.values()))
+    #def init_length_model(self): # Test
+
+    #def init_length_models(self): # Standard
+
+    def init_morpheme_level_boundaries(self, utterance): #
+        '''Initialise the morpheme level boundaires for uniHTL.
+
+        This function is used after each initialisation of the
+        SimpleAltHierUtterance object.
+        Filling the self.seen_word_seg.word_seg object as follows:
+            {'word': [segmentation as a list of bools]}
+        '''
+        word_list = utils.segment_sentence_with_boundaries(
+                    utterance.sentence, utterance.line_boundaries)
+        for word in word_list:
+            #word_segmentation = utterance.random_morph_boundary_for_word(word)
+            if (word not in self.seen_word_seg.word_seg): # New word
+                word_segmentation = utterance.random_morph_boundary_for_word(word)
+                morpheme_list = utils.segment_sentence_with_boundaries(
+                            word, word_segmentation)
+                # Add morphemes to segmented_m_list
+                self.segmented_m_list.extend(morpheme_list)
+                self.n_words_for_morph += 1
+                # Add the word and segmentation to seen_words_and_seg
+                #self.seen_words_and_seg[word] = [[word_segmentation, 1]]
+                self.seen_word_seg.add_word_and_seg(word, word_segmentation)
+            #elif (word_segmentation not in
+            #    [pair[0] for pair in self.seen_words_and_seg[word]]):
+            #elif (word_segmentation not in self.seen_word_seg.word_seg[word]):
+                # Already seen word but new segmentation
+                #morpheme_list = utils.segment_sentence_with_boundaries(
+                #            word, word_segmentation)
+                # Add morphemes to segmented_m_list
+                #self.segmented_m_list.extend(morpheme_list)
+                #self.n_words_for_morph += 1
+                # Add the word and segmentation to seen_words_and_seg
+                #self.seen_words_and_seg[word].append([word_segmentation, 1])
+                #self.seen_word_seg.add_word_and_seg(word, word_segmentation)
+            else: # Already seen word and segmentation
+                # Do nothing and use an existing word segmentation
+                word_segmentation = self.seen_word_seg.word_seg[word]
+                #word_seg_list = self.seen_word_seg.word_seg[word]
+                #total_word_freq = sum([seg_freq[1] for seg_freq in word_seg_list])
+                #seg_freq_list = self.seen_word_seg.seg_freq[word]
+                #total_word_freq = sum(self.seen_word_seg.seg_freq[word])
+                #rand_val = utterance.morph_random_gen.random() * total_word_freq
+                #cumul_freq = 0
+                #for (segmentation, freq) in word_seg_list:
+                #for i in range(len(word_seg_list)):
+                #    (segmentation, freq) = word_seg_list[i], seg_freq_list[i]
+                #    cumul_freq += freq
+                #    if cumul_freq > rand_val:
+                #        word_segmentation = segmentation
+                #word_segmentation = word_seg_list[int(rand_val)]
+                if word_segmentation == []:
+                    print(f'No segmentation assigned for {word}')
+                self.seen_word_seg.add_word_and_seg(word, word_segmentation)
+                #self.seen_words_and_seg[word][i][1] += 1
+            # Update the morpheme boundaries in utterance
+            utterance.morph_boundaries.extend(word_segmentation)
 
     # Probabilities
     #def p_cont(self):
 
-    #def p_cont_morph(self):
+    def p_cont_morph(self): #
+        n_words = self.restaurant_m.n_customers
+        n_utt = self.seen_word_seg.n_word_and_seg # N_types?
+        #self.n_words_for_morph #self.restaurant.n_customers
+        p = (n_words - n_utt + 1 + self.beta / 2) / (n_words + 1 + self.beta)
+        ###utils.check_probability(p)###
+        return p
 
     def p_bigram_character_model(self, string):
         '''
@@ -312,15 +279,10 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
             #p = ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
             # Length model
             length = len(string)
-            if length in self.p_length:
-                p = self.p_length[length]
-            else:
-                p = ((1 - self.p_boundary) ** (length - 1)) * self.p_boundary
-                self.p_length[length] = p # Save
+            p = self.morpheme_length_ps[length]
             # Character model
             for letter in string:
                 p = p * self.phoneme_ps[letter]
-            #p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
         self.character_model[string] = p # Save
         return p
 
@@ -334,15 +296,10 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
         else:
             # Length model
             length = len(string)
-            if length in self.p_length:
-                p = self.p_length[length]
-            else:
-                p = ((1 - self.p_boundary) ** (length - 1)) * self.p_boundary
-                self.p_length[length] = p # Save
+            p = self.morpheme_length_ps[length]
             # Character model
             for letter in string:
                 p = p * self.phoneme_ps[letter]
-            #p = p * ((1 - self.p_boundary) ** (len(string) - 1)) * self.p_boundary
         # Exclusive part for mixture supervision
         #if self.sup.method in ['mixture', 'mixture_bigram']:
             #print('p before mixture:', p)
@@ -389,7 +346,7 @@ class SupervisedHTLState(HierarchicalTwoLevelState): #PYPState):
 
 
 # Utterance in unigram case
-class SupervisedHierUtterance(HierarchicalUtterance): #PYPUtterance):
+class SupervisedSimpleAltHierUtterance(SimpleAltHierUtterance):
     '''Information on one utterance of the document'''
     def __init__(self, sentence, sup_sentence, morph_sup_sentence, p_segment,
                  random_gen, sup_boundary_method='none',
@@ -409,7 +366,7 @@ class SupervisedHierUtterance(HierarchicalUtterance): #PYPUtterance):
         self.morph_boundaries = [] # Morpheme-level boundaries
         self.init_boundary()
         self.morph_random_gen = random.Random(seed)
-        self.init_morph_boundary()
+        #self.init_morph_boundary() # Morpheme-level initialisation elsewhere
 
         self.sup_boundary_method = sup_boundary_method
         self.sup_boundary_parameter = sup_boundary_parameter
@@ -434,7 +391,6 @@ class SupervisedHierUtterance(HierarchicalUtterance): #PYPUtterance):
         if self.htl_level in ['none', 'word']: # No morpheme boundary supervision
             self.morph_sup_boundaries = [-1] * (self.sentence_length)
         utils.check_equality(self.sentence_length, len(self.sup_boundaries))
-
 
     #def init_boundary(self): # Random case only
 
@@ -496,46 +452,48 @@ class SupervisedHierUtterance(HierarchicalUtterance): #PYPUtterance):
         utils.check_equality(self.sentence_length, len(self.morph_sup_boundaries))
 
     def init_morph_boundary(self): # Random case only
-        for i in range(self.sentence_length - 1):
-            if self.line_boundaries[i]:
-                self.morph_boundaries.append(True)
+        pass
+
+    def random_morph_boundary_for_word(self, word):
+        # Random morpheme segmentation of a word for initialisation
+        random_morph_boundaries = []
+        for i in range(len(word) - 1):
+            rand_val = self.morph_random_gen.random()
+            if rand_val < self.p_segment:
+                random_morph_boundaries.append(True)
             else:
-                rand_val = self.random_gen.random()
-                #rand_val = random.random()
-                if rand_val < self.p_segment:
-                    self.morph_boundaries.append(True)
-                else:
-                    self.morph_boundaries.append(False)
-        self.morph_boundaries.append(True)
+                random_morph_boundaries.append(False)
+        random_morph_boundaries.append(True)
+        return random_morph_boundaries
 
     #def numer_base(self, hier_word, state):
-        #word = hier_word.sentence
-        # Position is used to find the boundary section
-        #if word not in state.restaurant.customers: # If the word is not in the lexicon
-        #    base = 0
-        #else: # The word is in the lexicon/restaurant
-        #    base = state.restaurant.customers[word] \
-        #           - (state.discount * state.restaurant.tables[word])
-        #base += ((state.discount * state.restaurant.n_tables) + state.alpha_1) \
-        #        * state.p_0(hier_word) #self.p_0(hier_word, state) # here, not p_word()
-        ##print('numer_base: ', base)
-        #return base
 
     #def left_word(self, i):
-
     #def right_word(self, i):
-
     #def centre_word(self, i):
 
-    #def find_left_right_centre_words(self, i):
+    def find_left_right_centre_words(self, i):
+        '''Find the left, right, and centre words with morpheme boundaries.'''
+        self.prev = self.prev_boundary(i)
+        self.next = self.next_boundary(i)
+        ###utils.check_value_between(i, 0, self.sentence_length - 1) # No last pos###
+        left = self.sentence[(self.prev + 1):(i + 1)]
+        right = self.sentence[(i + 1):(self.next + 1)]
+        centre = self.sentence[(self.prev + 1):(self.next + 1)]
+        # Morpheme boundaries
+        left_m_boundaries = self.morph_boundaries[(self.prev + 1):i] # Check values
+        #(not i + 1 beacuse of final True)
+        left_m_boundaries.append(True)
+        right_m_boundaries = self.morph_boundaries[(i + 1):(self.next + 1)] # Check values
+        centre_m_boundaries = self.morph_boundaries[(self.prev + 1):(self.next + 1)] # Check
+        self.left_word = SimpleAltHierarchicalWord(left, left_m_boundaries)
+        self.right_word = SimpleAltHierarchicalWord(right, right_m_boundaries)
+        self.centre_word = SimpleAltHierarchicalWord(centre, centre_m_boundaries)
 
     def supervised_find_lrc_words(self, i):
         '''Find the left, right, and centre words with morpheme boundaries.'''
         self.prev = self.prev_boundary(i)
         self.next = self.next_boundary(i)
-        #left = self.left_word(i)
-        #right = self.right_word(i)
-        #centre = self.centre_word(i)
         ###utils.check_value_between(i, 0, self.sentence_length - 1) # No last pos###
         left = self.sentence[(self.prev + 1):(i + 1)]
         right = self.sentence[(i + 1):(self.next + 1)]
@@ -557,43 +515,58 @@ class SupervisedHierUtterance(HierarchicalUtterance): #PYPUtterance):
         # Check values!
         right_m_sup_boundaries = self.morph_sup_boundaries[(i + 1):next_index]
         centre_m_sup_boundaries = self.morph_sup_boundaries[prev_index:next_index]
-        self.left_word = SupervisedHierWord(left, left_m_boundaries,
-                                            left_m_sup_boundaries)
-        self.right_word = SupervisedHierWord(right, right_m_boundaries,
-                                             right_m_sup_boundaries)
-        self.centre_word = SupervisedHierWord(centre, centre_m_boundaries,
-                                              centre_m_sup_boundaries)
+        self.left_word = SupervisedSimpleAltHierarchicalWord(left,
+                            left_m_boundaries, left_m_sup_boundaries)
+        self.right_word = SupervisedSimpleAltHierarchicalWord(right,
+                            right_m_boundaries, right_m_sup_boundaries)
+        self.centre_word = SupervisedSimpleAltHierarchicalWord(centre,
+                            centre_m_boundaries, centre_m_sup_boundaries)
 
     #def sample_morphemes_in_words(self, state, temp):
-        #'''Sampling the left, right, and centre words into morphemes.'''
-        # This function needs to be after find_left_right_centre_words.
-        # Sampling
-        #self.left_word.sample_morph(state, temp)
-        #self.right_word.sample_morph(state, temp)
-        #self.centre_word.sample_morph(state, temp)
-        # Update morpheme list
-        #self.left_word.morpheme_list = self.left_word.decompose()
-        #self.right_word.morpheme_list = self.right_word.decompose()
-        #self.centre_word.morpheme_list = self.centre_word.decompose()
 
     #def update_morph_boundaries(self, new_boundaries):
 
-    #def add_left_and_right(self, state):
+    def add_left_and_right(self, state):
+        '''Add the left and right words in the restaurants after sampling.'''
+        #print('Boundary case')
+        new_boundaries = self.left_word.line_boundaries + self.right_word.line_boundaries
+        # Update morpheme boundaries
+        self.update_morph_boundaries(new_boundaries)
+        # Add segmentation of words and seg
+        add_left = state.seen_word_seg.add_word_and_seg(
+                    self.left_word.sentence, self.left_word.line_boundaries)
+        add_right = state.seen_word_seg.add_word_and_seg(
+                    self.right_word.sentence, self.right_word.line_boundaries)
+        # Add the selected morphemes in the morpheme restaurant
+        if add_left:
+            self.left_word.add_morphemes(state.restaurant_m)
+        if add_right:
+            self.right_word.add_morphemes(state.restaurant_m)
+        # Word-level update
+        #self.line_boundaries[i] = True
+        state.restaurant.add_customer(self.left_word) #
+        state.restaurant.add_customer(self.right_word) #
 
-    #def add_centre(self, state):
+    def add_centre(self, state):
+        '''Add the centre word in the restaurants after sampling.'''
+        #print('No boundary case')
+        # Update morpheme boundaries
+        self.update_morph_boundaries(self.centre_word.line_boundaries)
+        # Add segmentation of words and seg
+        add_c = state.seen_word_seg.add_word_and_seg(
+                    self.centre_word.sentence, self.centre_word.line_boundaries)
+        # Add the selected morphemes in the morpheme restaurant
+        if add_c:
+            self.centre_word.add_morphemes(state.restaurant_m)
+        # Word-level update
+        #self.line_boundaries[i] = False
+        state.restaurant.add_customer(self.centre_word) #
 
     #def sample(self, state, temp):
 
     def sample_one(self, i, state, temp):
         restaurant = state.restaurant #
 
-        #if self.line_boundaries[i] == self.sup_boundaries[i]:
-        #    return # No sampling if correct boundary status
-        #else:
-        #    pass
-        #left = self.left_word(i)
-        #right = self.right_word(i)
-        #centre = self.centre_word(i)
         self.find_left_right_centre_words(i)
         left = self.left_word.sentence
         right = self.right_word.sentence
@@ -603,14 +576,26 @@ class SupervisedHierUtterance(HierarchicalUtterance): #PYPUtterance):
             #print('yes case')
             restaurant.remove_customer(left)
             restaurant.remove_customer(right)
-            # Remove the morphemes
-            self.left_word.remove_morphemes(state.restaurant_m)
-            self.right_word.remove_morphemes(state.restaurant_m)
+            # Remove segmentation from seen_words_and_seg
+            # Bools to indicate if morpheme should be removed too.
+            remove_left = state.seen_word_seg.remove_word_and_seg(left,
+                                self.left_word.line_boundaries)
+            remove_right = state.seen_word_seg.remove_word_and_seg(right,
+                                self.right_word.line_boundaries)
+            # Remove the morphemes, when necessary
+            if remove_left:
+                self.left_word.remove_morphemes(state.restaurant_m)
+            if remove_right:
+                self.right_word.remove_morphemes(state.restaurant_m)
         else: # No boundary at the i-th position ('no' case)
             #print('no case')
             restaurant.remove_customer(centre)
+            # Remove segmentation from seen_words_and_seg
+            remove_centre = state.seen_word_seg.remove_word_and_seg(centre,
+                                self.centre_word.line_boundaries)
             # Remove the morphemes
-            self.centre_word.remove_morphemes(state.restaurant_m)
+            if remove_centre:
+                self.centre_word.remove_morphemes(state.restaurant_m)
         # Sample morphemes
         self.sample_morphemes_in_words(state, temp)
 
@@ -620,19 +605,14 @@ class SupervisedHierUtterance(HierarchicalUtterance): #PYPUtterance):
             else: # self.sup_boundaries[i] == 0
                 self.add_centre(state)
             return # No sampling if correct boundary status
-        #else:
-        #    pass
 
         # Supervision
         if self.sup_boundaries[i] == 1:
             # No sampling if known boundary
-            #restaurant.add_customer(left) #
-            #restaurant.add_customer(right) #
             self.line_boundaries[i] = True
             self.add_left_and_right(state)
         elif self.sup_boundaries[i] == 0:
             # No sampling if known no boundary position
-            #restaurant.add_customer(centre) #
             self.line_boundaries[i] = False
             self.add_centre(state)
         else: # self.sup_boundaries[i] == -1: # Sampling case
@@ -659,38 +639,29 @@ class SupervisedHierUtterance(HierarchicalUtterance): #PYPUtterance):
             no = no ** temp
             p_yes = yes / (yes + no)
             random_value = random.random()
-            if (random_value < p_yes):
-                #print('Boundary case')
+            if (random_value < p_yes): # Boundary case
                 self.line_boundaries[i] = True
                 self.add_left_and_right(state)
-            else:
-                #print('No boundary case')
+            else: # No boundary case
                 self.line_boundaries[i] = False
                 self.add_centre(state)
 
-        ###if self.sup_boundaries[i] >= 0:###
-        ###    utils.check_equality(self.sup_boundaries[i], self.line_boundaries[i])###
-
     #def prev_boundary(self, i):
-
     #def next_boundary(self, i):
 
+
 # Word in unigram case
-class SupervisedHierWord(HierarchicalWord): #PYPUtterance):
+class SupervisedSimpleAltHierarchicalWord(SimpleAltHierarchicalWord):
     # Information on one utterance of the document
     def __init__(self, sentence, boundaries, sup_boundaries): #p_segment):
         self.sentence = sentence # Unsegmented utterance # Char
-        #self.p_segment = p_segment
-        #utils.check_probability(p_segment)
         self.sentence_length = len(self.sentence)
         self.line_boundaries = boundaries # Here, morpheme-level boundaries
         self.sup_boundaries = sup_boundaries # Supervision boundaries
-        #self.init_boundary()
         self.morpheme_list = self.decompose()
 
 
     #def init_boundary(self): # Random case only
-
     #def numer_base(self, word, state):
 
     #def numer_base_morph(self, morph, state):
@@ -698,16 +669,49 @@ class SupervisedHierWord(HierarchicalWord): #PYPUtterance):
     #def p_morph(self, morpheme, state):
 
     #def left_word(self, i):
-
     #def right_word(self, i):
-
     #def centre_word(self, i):
-
     #def sample(self, state, temp):
-
     #def sample_one(self, i, state, temp):
 
-    #def sample_morph(self, state, temp):
+    def sample_morph(self, state, temp):
+        '''Specific to altHTL: if already seen word, (usually) no sampling.'''
+        ###utils.check_equality(len(self.line_boundaries), self.sentence_length)###
+        #len(self.sentence))
+        seen = (self.sentence in state.seen_word_seg.word_seg)
+        #state.seen_words_and_seg) # Initialisation
+        if seen: # Already seen word
+            #word_seg_list = state.seen_word_seg.word_seg[self.sentence]
+            word_seg = state.seen_word_seg.word_seg[self.sentence]
+            ##state.seen_words_and_seg[word]
+            ##total_word_freq = sum([seg_freq[1] for seg_freq in word_seg_list])
+            #total_word_freq = sum(state.seen_word_seg.seg_freq[self.sentence])
+            word_freq = state.seen_word_seg.seg_freq[self.sentence]
+            #probability = total_word_freq / (total_word_freq + state.alpha_1)
+            #random_value = random.random() * total_word_freq # Seed?
+            #if random_value > probability:
+                # Sample from scratch
+                #self.sample_from_scratch(state, temp)
+            #else:
+                # No segmentation
+                #n_seg = len(word_seg_list)
+                #cumul_freq = 0
+                #for (segmentation, frequency) in word_seg_list:
+                #for i in range(n_seg):
+                    #cumul_freq += state.seen_word_seg.seg_freq[self.sentence][i]
+                    #if random_value > cumul_freq:
+                        #self.line_boundaries = word_seg_list[i]
+            self.line_boundaries = word_seg
+        else: # New word
+            # Sample from scratch
+            self.sample_from_scratch(state, temp)
+
+    #def sample_from_scratch(self, state, temp):
+        # Sample from scratch
+        #self.line_boundaries = [0] * (self.sentence_length - 1) + [1]
+        #for i in range(self.sentence_length - 1):
+        #    self.sample_one_morph(i, state, temp)
+            #self.sample_one(i, state, temp)
 
     def sample_one_morph(self, i, state, temp):
         if self.line_boundaries[i] == self.sup_boundaries[i]:
@@ -776,8 +780,8 @@ class SupervisedHierWord(HierarchicalWord): #PYPUtterance):
         ###if self.sup_boundaries[i] >= 0:###
         ###    utils.check_equality(self.sup_boundaries[i], self.line_boundaries[i])###
 
-    #def prev_boundary(self, i):
 
+    #def prev_boundary(self, i):
     #def next_boundary(self, i):
 
     #def decompose(self):
