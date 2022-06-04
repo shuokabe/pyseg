@@ -94,7 +94,10 @@ class SupervisedSimpleAltHTLState(SimpleAltHierarchicalTwoLevelState):
                     random_gen_sup, self.sup.boundary_method,
                     self.sup.boundary_parameter, supervision_bool,
                     self.htl_level)
-                self.init_morpheme_level_boundaries(utterance) #
+                if supervision_bool:
+                    self.init_sup_morpheme_level_boundaries(utterance) #
+                else:
+                    self.init_morpheme_level_boundaries(utterance) #
                 self.utterances.append(utterance)
                 self.sup_boundaries.append(utterance.sup_boundaries)
                 self.morph_sup_boundaries.append(utterance.morph_sup_boundaries)
@@ -156,7 +159,7 @@ class SupervisedSimpleAltHTLState(SimpleAltHierarchicalTwoLevelState):
         logging.debug(f'{self.restaurant_m.n_customers} tokens initially (morpheme)')
 
         # To count the number of morpheme updates
-        self.count_morpheme_updates()
+        self.init_count_morpheme_updates()
 
         #for word, segmentations in self.seen_words_and_seg.items():
         #    seen_segmentations = self.seen_words_and_seg[word]
@@ -246,6 +249,44 @@ class SupervisedSimpleAltHTLState(SimpleAltHierarchicalTwoLevelState):
                 #self.seen_words_and_seg[word][i][1] += 1
             # Update the morpheme boundaries in utterance
             utterance.morph_boundaries.extend(word_segmentation)
+
+    def init_sup_morpheme_level_boundaries(self, utterance): #
+        '''Initialise the morpheme level boundaires for supervised uniHTL.
+
+        This function is used after each initialisation of the
+        SupervisedSimpleAltHierUtterance object with a SENTENCE SUPERVISION.
+        Filling the self.seen_word_seg.word_seg object as follows:
+            {'word': [segmentation as a list of bools]}
+        '''
+        assert (self.sup.boundary_method == 'sentence'), ('The boundary '
+            'supervision method is not sentence.')
+        utterance.line_boundaries = utterance.sup_boundaries
+        word_list = utils.segment_sentence_with_boundaries(
+                    utterance.sentence, utterance.line_boundaries)
+        word_index = 0
+        for word in word_list:
+            word_length = len(word)
+            #word_segmentation = utterance.random_morph_boundary_for_word(word)
+            if (word not in self.seen_word_seg.word_seg): # New word
+                #word_segmentation = utterance.random_morph_boundary_for_word(word)
+                word_segmentation = utterance.morph_sup_boundaries[word_index:(
+                                    word_index + word_length)]
+                morpheme_list = utils.segment_sentence_with_boundaries(
+                            word, word_segmentation)
+                # Add morphemes to segmented_m_list
+                self.segmented_m_list.extend(morpheme_list)
+                self.n_words_for_morph += 1
+                # Add the word and segmentation to seen_words_and_seg
+                self.seen_word_seg.add_word_and_seg(word, word_segmentation)
+            else: # Already seen word and segmentation
+                # Do nothing and use an existing word segmentation
+                word_segmentation = self.seen_word_seg.word_seg[word]
+                if word_segmentation == []:
+                    print(f'No segmentation assigned for {word}')
+                self.seen_word_seg.add_word_and_seg(word, word_segmentation)
+            # Update the morpheme boundaries in utterance
+            utterance.morph_boundaries.extend(word_segmentation)
+            word_index += word_length
 
     #def init_count_morpheme_updates(self):
     #def next_count_morpheme_updates(self):
