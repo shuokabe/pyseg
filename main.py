@@ -109,6 +109,8 @@ def parse_args():
     parser.add_argument('--htl_level', default='none', type=str,
                         choices=['none', 'both', 'morpheme', 'word'],
                         help='supervision level for the htl model')
+    parser.add_argument('--htl_iter', default=0, type=int,
+                        help='number of additional iterations for morphemes')
 
     parser.add_argument('--just_seg', default=False, type=bool,
                         help='just segment the text (no evaluation)')
@@ -173,7 +175,8 @@ def main():
         main_state = NHPYLMState(data, alpha_1 = args.alpha_1,
             alpha_2 = args.alpha_2, p_boundary = args.p_boundary,
             poisson_parameter = args.poisson_parameter)
-    elif model_name in ['htl', 'uni_htl', 'alt_htl', 'sim_htl']: # Hierarchical Two Level model
+    elif model_name in ['htl', 'uni_htl', 'alt_htl', 'sim_htl']:
+        # Hierarchical Two Level model
         if supervision:
             if (args.htl_level == 'none'):
             # If no supervision level has been specified, both levels are used.
@@ -290,6 +293,10 @@ def main():
             logging.info(f' Every {args.online_batch} sentences, '
                          f'{args.online_iter} iterations.')
 
+    if model_name == 'sim_htl':
+        logging.info(f'Additional sampling of word types for {args.htl_iter} '
+                     'iterations')
+
     logging.info('Evaluating a sample')
 
     logging.info(f'Random seed = {rnd_seed:d}')
@@ -310,6 +317,8 @@ def main():
     temp = temperatures[temp_index]
     logging.info(f'iter 0: temp = {temp:.1f}')
     for i in tqdm(range(1, iters + 1)):
+        if model_name in ['alt_htl', 'sim_htl']:
+            main_state.next_count_morpheme_updates()
         if ((i % iter_incr) == 0) and (i != iters): # Change temperature
             temp_index += 1
             temp = temperatures[temp_index]
@@ -324,8 +333,12 @@ def main():
         main_state.sample(temp)
         if model_name not in ['two_level', 'htl', 'uni_htl']:
             utils.check_n_type_token(main_state, args)
-        #else:
-        #    pass
+
+        # Update morpheme boundaries
+        if (model_name == 'sim_htl') and (args.htl_iter > 0) and ((i % 5) == 0):
+            logging.info('Sampling word types for morphemes')
+            for j in range(args.htl_iter):
+                main_state.sample_word_types(temp)
         # Hyperparameter sampling
         if hyp_sample:
             #main_state.alpha_1 = alpha_sample.sample_concentration(main_state)
@@ -396,6 +409,9 @@ def main():
             segmented_text = main_state.get_segmented()
         else:
             segmented_text = main_state.get_two_level_segmentation()
+        if model_name == 'sim_htl':
+            print(f'Morphemes sampled from scratch: {main_state.morpheme_scratch}')
+            print(f'Morpheme update number: {main_state.morpheme_update}')
         # Output file (log + segmented text)
         output_file = args.output_file_base + '.txt'
         with open(output_file, 'w',  encoding = 'utf8') as out_text:

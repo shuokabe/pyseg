@@ -155,6 +155,9 @@ class SupervisedSimpleAltHTLState(SimpleAltHierarchicalTwoLevelState):
         logging.debug(f'{self.restaurant.n_customers} tokens initially (word)')
         logging.debug(f'{self.restaurant_m.n_customers} tokens initially (morpheme)')
 
+        # To count the number of morpheme updates
+        self.count_morpheme_updates()
+
         #for word, segmentations in self.seen_words_and_seg.items():
         #    seen_segmentations = self.seen_words_and_seg[word]
         #    self.seen_words_and_seg[word] = list(set(seen_segmentations))
@@ -243,6 +246,9 @@ class SupervisedSimpleAltHTLState(SimpleAltHierarchicalTwoLevelState):
                 #self.seen_words_and_seg[word][i][1] += 1
             # Update the morpheme boundaries in utterance
             utterance.morph_boundaries.extend(word_segmentation)
+
+    #def init_count_morpheme_updates(self):
+    #def next_count_morpheme_updates(self):
 
     # Probabilities
     #def p_cont(self):
@@ -454,17 +460,7 @@ class SupervisedSimpleAltHierUtterance(SimpleAltHierUtterance):
     def init_morph_boundary(self): # Random case only
         pass
 
-    def random_morph_boundary_for_word(self, word):
-        # Random morpheme segmentation of a word for initialisation
-        random_morph_boundaries = []
-        for i in range(len(word) - 1):
-            rand_val = self.morph_random_gen.random()
-            if rand_val < self.p_segment:
-                random_morph_boundaries.append(True)
-            else:
-                random_morph_boundaries.append(False)
-        random_morph_boundaries.append(True)
-        return random_morph_boundaries
+    #def random_morph_boundary_for_word(self, word):
 
     #def numer_base(self, hier_word, state):
 
@@ -539,8 +535,10 @@ class SupervisedSimpleAltHierUtterance(SimpleAltHierUtterance):
                     self.right_word.sentence, self.right_word.line_boundaries)
         # Add the selected morphemes in the morpheme restaurant
         if add_left:
+            state.morpheme_update[state.morpheme_update_index] += 1 # Count updates
             self.left_word.add_morphemes(state.restaurant_m)
         if add_right:
+            state.morpheme_update[state.morpheme_update_index] += 1 # Count updates
             self.right_word.add_morphemes(state.restaurant_m)
         # Word-level update
         #self.line_boundaries[i] = True
@@ -557,6 +555,7 @@ class SupervisedSimpleAltHierUtterance(SimpleAltHierUtterance):
                     self.centre_word.sentence, self.centre_word.line_boundaries)
         # Add the selected morphemes in the morpheme restaurant
         if add_c:
+            state.morpheme_update[state.morpheme_update_index] += 1 # Count updates
             self.centre_word.add_morphemes(state.restaurant_m)
         # Word-level update
         #self.line_boundaries[i] = False

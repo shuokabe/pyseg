@@ -112,9 +112,11 @@ class SimpleSeenWordsAndSeg:
         #word_seg_list = self.word_seg[word]
         #index = self.word_seg[word].index(segmentation)
         self.seg_freq[word] += -1
-        if self.seg_freq[word] <= 0: # Remove the segmentation
+        if self.seg_freq[word] < 0:
+            raise KeyError(f'The dictionary does not contain the word {word}.')
+        elif self.seg_freq[word] == 0: # Remove the segmentation
             del self.word_seg[word]
-            #del self.seg_freq[word]
+            del self.seg_freq[word]
             #if self.seg_freq[word] == []: # Remove the word entirely
             #self.word_seg.pop(word)
             #self.seg_freq.pop(word)
@@ -259,6 +261,8 @@ class AlternativeHierarchicalTwoLevelState(HierarchicalTwoLevelState):
         logging.debug(f'{self.restaurant.n_customers} tokens initially (word)')
         logging.debug(f'{self.restaurant_m.n_customers} tokens initially (morpheme)')
 
+        # To count the number of morpheme updates
+        self.init_count_morpheme_updates()
         #for word, segmentations in self.seen_words_and_seg.items():
         #    seen_segmentations = self.seen_words_and_seg[word]
         #    self.seen_words_and_seg[word] = list(set(seen_segmentations))
@@ -329,7 +333,8 @@ class AlternativeHierarchicalTwoLevelState(HierarchicalTwoLevelState):
                 #total_word_freq = sum([seg_freq[1] for seg_freq in word_seg_list])
                 seg_freq_list = self.seen_word_seg.seg_freq[word]
                 total_word_freq = sum(self.seen_word_seg.seg_freq[word])
-                rand_val = utterance.morph_random_gen.random() * total_word_freq
+                #rand_val = utterance.morph_random_gen.random() * total_word_freq
+                rand_val = random.random() * total_word_freq # Test
                 cumul_freq = 0
                 #for (segmentation, freq) in word_seg_list:
                 for i in range(len(word_seg_list)):
@@ -344,6 +349,21 @@ class AlternativeHierarchicalTwoLevelState(HierarchicalTwoLevelState):
                 #self.seen_words_and_seg[word][i][1] += 1
             # Update the morpheme boundaries in utterance
             utterance.morph_boundaries.extend(word_segmentation)
+
+    def init_count_morpheme_updates(self):
+        '''Track the number of morpheme updates made by the model.'''
+        self.morpheme_update = []
+        self.morpheme_scratch = []
+        self.morpheme_update_index = -1
+        assert (set(self.seen_word_seg.word_seg.keys()) ==
+        set(self.restaurant.restaurant.keys())), ('All the seen words are not '
+        'in the restaurant.')
+
+    def next_count_morpheme_updates(self):
+        '''Increment the lists for the next batch of morpheme updates.'''
+        self.morpheme_update.append(0)
+        self.morpheme_scratch.append(0)
+        self.morpheme_update_index += 1
 
     # Probabilities
     #def p_cont(self):
@@ -406,7 +426,7 @@ class AltHierUtterance(HierarchicalUtterance):
         self.line_boundaries = [] # Word-level boundaries
         self.morph_boundaries = [] # Morpheme-level boundaries
         self.init_boundary()
-        self.morph_random_gen = random.Random(seed)
+        #self.morph_random_gen = random.Random(seed)
         #self.init_morph_boundary() # Morpheme-level initialisation elsewhere
 
 
@@ -419,7 +439,7 @@ class AltHierUtterance(HierarchicalUtterance):
         # Random morpheme segmentation of a word for initialisation
         random_morph_boundaries = []
         for i in range(len(word) - 1):
-            rand_val = self.morph_random_gen.random()
+            rand_val = random.random() #self.morph_random_gen.random() # Test
             if rand_val < self.p_segment:
                 random_morph_boundaries.append(True)
             else:
@@ -468,8 +488,10 @@ class AltHierUtterance(HierarchicalUtterance):
                     self.right_word.sentence, self.right_word.line_boundaries)
         # Add the selected morphemes in the morpheme restaurant
         if add_left:
+            state.morpheme_update[state.morpheme_update_index] += 1 # Count updates
             self.left_word.add_morphemes(state.restaurant_m)
         if add_right:
+            state.morpheme_update[state.morpheme_update_index] += 1 # Count updates
             self.right_word.add_morphemes(state.restaurant_m)
         # Word-level update
         #self.line_boundaries[i] = True
@@ -486,6 +508,7 @@ class AltHierUtterance(HierarchicalUtterance):
                     self.centre_word.sentence, self.centre_word.line_boundaries)
         # Add the selected morphemes in the morpheme restaurant
         if add_c:
+            state.morpheme_update[state.morpheme_update_index] += 1 # Count updates
             self.centre_word.add_morphemes(state.restaurant_m)
         # Word-level update
         #self.line_boundaries[i] = False
@@ -617,7 +640,8 @@ class AltHierarchicalWord(HierarchicalWord):
 
     def sample_from_scratch(self, state, temp):
         # Sample from scratch
-        self.line_boundaries = [0] * (self.sentence_length - 1) + [1]
+        state.morpheme_scratch[state.morpheme_update_index] += 1 # All sampled
+        self.line_boundaries = [False] * (self.sentence_length - 1) + [True]
         for i in range(self.sentence_length - 1):
             self.sample_one_morph(i, state, temp)
             #self.sample_one(i, state, temp)
@@ -714,6 +738,10 @@ class SimpleAltHierarchicalTwoLevelState(AlternativeHierarchicalTwoLevelState):
         logging.debug(f'{self.restaurant.n_customers} tokens initially (word)')
         logging.debug(f'{self.restaurant_m.n_customers} tokens initially (morpheme)')
 
+        # To count the number of morpheme updates
+        self.init_count_morpheme_updates()
+        #self.morpheme_update, self.morpheme_scratch, self.morpheme_update_index
+
         #for word, segmentations in self.seen_words_and_seg.items():
         #    seen_segmentations = self.seen_words_and_seg[word]
         #    self.seen_words_and_seg[word] = list(set(seen_segmentations))
@@ -787,6 +815,9 @@ class SimpleAltHierarchicalTwoLevelState(AlternativeHierarchicalTwoLevelState):
             # Update the morpheme boundaries in utterance
             utterance.morph_boundaries.extend(word_segmentation)
 
+    #def init_count_morpheme_updates(self):
+    #def next_count_morpheme_updates(self):
+
     # Probabilities
     #def p_cont(self):
 
@@ -804,6 +835,51 @@ class SimpleAltHierarchicalTwoLevelState(AlternativeHierarchicalTwoLevelState):
 
     # Sampling
     #def sample(self, temp):
+
+    def sample_word_types(self, temp):
+        '''Sample the word types for morpheme segmentation.'''
+        # Avoid key issues
+        word_type_list = list(self.seen_word_seg.word_seg.keys())
+        word_type_list.sort()
+        assert (set(word_type_list) ==
+        set(self.restaurant.restaurant.keys())), ('All the seen words are not '
+        'in the restaurant.')
+        print('Resample')
+        #print(f'Word list: {word_type_list}')
+        #print(f'Segmentation dictionary: {self.seen_word_seg.word_seg}')
+        for word_type in word_type_list:
+            print('\nword_type', word_type)
+            assert (word_type in self.restaurant.restaurant), (
+            f'{word_type} not in restaurant')
+            morpheme_boundaries = self.seen_word_seg.word_seg[word_type]
+            word = SimpleAltHierarchicalWord(word_type, morpheme_boundaries)
+            # Remove the word (and morpheme)
+            #print(word.morpheme_list)
+            #print(f'Segmentation boundaries: {morpheme_boundaries}')
+            #print(f'Segmentation boundaries: {word.line_boundaries}')
+            remove_word  = self.seen_word_seg.remove_word_and_seg(word_type,
+                                morpheme_boundaries)
+            #print(f'Remove word: {remove_word}')
+            #print(f'Word restaurant: {self.restaurant.restaurant}')
+            #print(f'Morpheme restaurant: {self.restaurant_m.restaurant}')
+            if remove_word:
+                print(f'Removed word: {word.sentence}, {word.line_boundaries}')
+                word.remove_morphemes(self.restaurant_m)
+            # Sampling
+            word.sample_word(self, temp)
+            word.morpheme_list = word.decompose()
+            #print(f'New decompostion: {word.morpheme_list}')
+            # Add the word (and morpheme)
+            add_word = self.seen_word_seg.add_word_and_seg(
+                        word.sentence, word.line_boundaries)
+            #print(f'New segmentation: {word.line_boundaries}')
+            #print(f'Add word: {add_word}\n')
+            # Add the selected morphemes in the morpheme restaurant
+            if add_word:
+                print(f'Added word: {word.sentence}, {word.line_boundaries}')
+                #self.morpheme_update[self.morpheme_update_index] += 1 # Count updates
+                word.add_morphemes(self.restaurant_m)
+        print(f'New segmentation dictionary: {self.seen_word_seg.word_seg}')
 
     #def get_segmented(self):
 
@@ -834,16 +910,21 @@ class SimpleAltHierUtterance(AltHierUtterance):
         '''Find the left, right, and centre words with morpheme boundaries.'''
         self.prev = self.prev_boundary(i)
         self.next = self.next_boundary(i)
+        # For easier notations
+        prev_index = self.prev + 1
+        next_index = self.next + 1
         ###utils.check_value_between(i, 0, self.sentence_length - 1) # No last pos###
-        left = self.sentence[(self.prev + 1):(i + 1)]
-        right = self.sentence[(i + 1):(self.next + 1)]
-        centre = self.sentence[(self.prev + 1):(self.next + 1)]
+        left = self.sentence[prev_index:(i + 1)]
+        right = self.sentence[(i + 1):next_index]
+        centre = self.sentence[prev_index:next_index]
+        #[(self.prev + 1):(self.next + 1)]
         # Morpheme boundaries
-        left_m_boundaries = self.morph_boundaries[(self.prev + 1):i] # Check values
+        left_m_boundaries = self.morph_boundaries[prev_index:(i + 1)]# Check values
         #(not i + 1 beacuse of final True)
         left_m_boundaries.append(True)
-        right_m_boundaries = self.morph_boundaries[(i + 1):(self.next + 1)] # Check values
-        centre_m_boundaries = self.morph_boundaries[(self.prev + 1):(self.next + 1)] # Check
+        right_m_boundaries = self.morph_boundaries[(i + 1):next_index] # Check values
+        centre_m_boundaries = self.morph_boundaries[prev_index:next_index]
+        #[(self.prev + 1):(self.next + 1)] # Check
         self.left_word = SimpleAltHierarchicalWord(left, left_m_boundaries)
         self.right_word = SimpleAltHierarchicalWord(right, right_m_boundaries)
         self.centre_word = SimpleAltHierarchicalWord(centre, centre_m_boundaries)
@@ -922,6 +1003,12 @@ class SimpleAltHierarchicalWord(AltHierarchicalWord):
     #def sample_from_scratch(self, state, temp):
 
     #def sample_one_morph(self, i, state, temp):
+
+    def sample_word(self, state, temp):
+        '''Sample the word itself to get the morphemes.'''
+        #state.morpheme_scratch[state.morpheme_update_index] += 1 # All sampled
+        for i in range(self.sentence_length - 1):
+            self.sample_one_morph(i, state, temp)
 
     #def prev_boundary(self, i):
     #def next_boundary(self, i):

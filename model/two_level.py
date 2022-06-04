@@ -526,7 +526,7 @@ class HierarchicalUtterance(PYPUtterance): # Information on one utterance of the
             if self.line_boundaries[i]:
                 self.morph_boundaries.append(True)
             else:
-                rand_val = self.morph_random_gen.random()
+                rand_val = random.random() #self.morph_random_gen.random()
                 #rand_val = random.random()
                 if rand_val < self.p_segment:
                     self.morph_boundaries.append(True)
@@ -793,13 +793,7 @@ class HierarchicalWord(PYPUtterance): # Information on one utterance of the docu
         '''Decompose the word into a list of morphemes.'''
         morpheme_list = []
         beg = 0
-        #pos = 0
         ###utils.check_equality(len(self.line_boundaries), self.sentence_length)###
-        #for boundary in self.line_boundaries:
-        #    if boundary: # If there is a boundary
-        #        morpheme_list.append(self.sentence[beg:(pos + 1)])
-        #        beg = pos + 1
-        #    pos += 1
         end = self.sentence_length
         while beg < end:
             pos = self.line_boundaries.index(1, beg)
