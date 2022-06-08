@@ -844,17 +844,17 @@ class SimpleAltHierarchicalTwoLevelState(AlternativeHierarchicalTwoLevelState):
         assert (set(word_type_list) ==
         set(self.restaurant.restaurant.keys())), ('All the seen words are not '
         'in the restaurant.')
-        print('Resample')
+        #print('Resample')
         #print(f'Word list: {word_type_list}')
         #print(f'Segmentation dictionary: {self.seen_word_seg.word_seg}')
         for word_type in word_type_list:
-            print('\nword_type', word_type)
+            #print('\nword_type', word_type)
             assert (word_type in self.restaurant.restaurant), (
             f'{word_type} not in restaurant')
             morpheme_boundaries = self.seen_word_seg.word_seg[word_type]
             word = SimpleAltHierarchicalWord(word_type, morpheme_boundaries)
             # Remove the word (and morpheme)
-            #print(word.morpheme_list)
+            #print(f'Before: {word.morpheme_list}')
             #print(f'Segmentation boundaries: {morpheme_boundaries}')
             #print(f'Segmentation boundaries: {word.line_boundaries}')
             remove_word  = self.seen_word_seg.remove_word_and_seg(word_type,
@@ -862,9 +862,9 @@ class SimpleAltHierarchicalTwoLevelState(AlternativeHierarchicalTwoLevelState):
             #print(f'Remove word: {remove_word}')
             #print(f'Word restaurant: {self.restaurant.restaurant}')
             #print(f'Morpheme restaurant: {self.restaurant_m.restaurant}')
-            if remove_word:
-                print(f'Removed word: {word.sentence}, {word.line_boundaries}')
-                word.remove_morphemes(self.restaurant_m)
+            #if remove_word:
+                #print(f'Removed word: {word.sentence}, {word.line_boundaries}')
+            word.remove_morphemes(self.restaurant_m) #
             # Sampling
             word.sample_word(self, temp)
             word.morpheme_list = word.decompose()
@@ -875,11 +875,44 @@ class SimpleAltHierarchicalTwoLevelState(AlternativeHierarchicalTwoLevelState):
             #print(f'New segmentation: {word.line_boundaries}')
             #print(f'Add word: {add_word}\n')
             # Add the selected morphemes in the morpheme restaurant
-            if add_word:
-                print(f'Added word: {word.sentence}, {word.line_boundaries}')
+            #if add_word:
+                #print(f'Added word: {word.sentence}, {word.line_boundaries}')
                 #self.morpheme_update[self.morpheme_update_index] += 1 # Count updates
-                word.add_morphemes(self.restaurant_m)
-        print(f'New segmentation dictionary: {self.seen_word_seg.word_seg}')
+            word.add_morphemes(self.restaurant_m) #
+            for morph in word.morpheme_list:
+                assert (morph in self.restaurant_m.restaurant), (
+                    f'{morph} not in restaurant.') #
+        #print(f'New segmentation dictionary: {self.seen_word_seg.word_seg}')
+
+    def update_morpheme_segmentation(self):
+        '''Update the morpheme segmentation after the additional samplings.'''
+        #print('Update the morpheme segmentation after additional samplings')
+        i = 0
+        for utterance in self.utterances:
+            #if i == 0:
+                #print(f'Utterance before: {utterance.morph_boundaries}')
+            word_list = utils.segment_sentence_with_boundaries(
+                        utterance.sentence, utterance.line_boundaries)
+            new_morph_boundaries = []
+            for word in word_list:
+                assert (word in self.seen_word_seg.word_seg), ('There is '
+                f'no {word} previously seen.')
+                word_segmentation = self.seen_word_seg.word_seg[word]
+                assert (word_segmentation != []), (
+                    f'No segmentation assigned for {word}')
+                new_morph_boundaries.extend(word_segmentation)
+            # Update the morpheme boundaries in utterance
+            utterance.morph_boundaries = new_morph_boundaries
+            morph_list = utils.segment_sentence_with_boundaries(
+                        utterance.sentence, utterance.morph_boundaries) #
+            for morph in morph_list:
+                assert (morph in self.restaurant_m.restaurant), (
+                    f'{morph} not in restaurant.') #
+            #if i == 0:
+                #print(f'Utterance after: {utterance.morph_boundaries}\n')
+            i += 1
+        assert (sum(self.seen_word_seg.seg_freq.values()) ==
+        self.restaurant.n_customers), 'Different number of customers.'
 
     #def get_segmented(self):
 
@@ -948,11 +981,7 @@ class SimpleAltHierUtterance(AltHierUtterance):
 # Word in unigram case
 class SimpleAltHierarchicalWord(AltHierarchicalWord):
     # Information on one utterance of the document
-    #def __init__(self, sentence, boundaries): #p_segment):
-        #self.sentence = sentence # Unsegmented utterance # Char
-        #self.sentence_length = len(self.sentence)
-        #self.line_boundaries = boundaries # Here, morpheme-level boundaries
-        #self.morpheme_list = self.decompose()
+    #def __init__(self, sentence, boundaries):
 
 
     #def init_boundary(self): # Random case only

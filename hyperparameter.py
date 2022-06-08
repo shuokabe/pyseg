@@ -123,18 +123,24 @@ class Hyperparameter_sampling:
         '''Sample auxiliary variable x, y_i, z_wkj.'''
         if self.morph: # For morpheme-level hyperparameters in the HTL model
             restaurant = state.restaurant_m
+            alpha = state.alpha_m
+            discount = state.discount_m
         else: # Other models (default)
             restaurant = state.restaurant
+            alpha = state.alpha_1
+            discount = state.discount
         n, t = restaurant.n_customers, restaurant.n_tables
         # x
         if n <= 1:
             self.x = 1
         else:
-            self.x = self.random_gen.beta(state.alpha_1 + 1, n - 1)
+            #self.x = self.random_gen.beta(state.alpha_1 + 1, n - 1)
+            self.x = self.random_gen.beta(alpha + 1, n - 1)
         # y_i
         self.y_i_list = []
         for i in range(1, t): # if t == 1: y_i_list = []
-            y_i = state.alpha_1 / (state.alpha_1 + state.discount * i)
+            #y_i = state.alpha_1 / (state.alpha_1 + state.discount * i)
+            y_i = alpha / (alpha + (discount * i))
             utils.check_probability(y_i)
             self.y_i_list.append(self.random_gen.binomial(1, y_i))
         utils.check_equality(len(self.y_i_list), t - 1)
@@ -145,7 +151,8 @@ class Hyperparameter_sampling:
             for c_wk in table_w_list:
                 if c_wk >= 2:
                     for j in range(1, int(c_wk)):
-                        z_wkj = (j - 1) / (j - state.discount)
+                        #z_wkj = (j - 1) / (j - state.discount)
+                        z_wkj = (j - 1) / (j - discount)
                         utils.check_probability(z_wkj)
                         self.z_wkj_list.append(self.random_gen.binomial(1, z_wkj))
                 else:

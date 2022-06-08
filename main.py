@@ -98,6 +98,8 @@ def parse_args():
                         help='boundary supervision method')
     parser.add_argument('--supervision_boundary_parameter', default=0, type=float,
                         help='parameter value for boundary supervision')
+
+    # Online learning
     parser.add_argument('--online', default='none', type=str,
                         choices=['none', 'without', 'with', 'bigram'],
                         help='online learning method')
@@ -106,15 +108,20 @@ def parse_args():
                         'is carried out for online learning')
     parser.add_argument('--online_iter', default=0, type=int,
                         help='number of iterations for online learning')
+
+    # Hierarchical models
     parser.add_argument('--htl_level', default='none', type=str,
                         choices=['none', 'both', 'morpheme', 'word'],
                         help='supervision level for the htl model')
+    parser.add_argument('--htl_batch', default=0, type=int,
+                        help='number of sentences after which additional '
+                        'iterations are carried out for morphemes')
     parser.add_argument('--htl_iter', default=0, type=int,
                         help='number of additional iterations for morphemes')
 
     parser.add_argument('--just_seg', default=False, type=bool,
                         help='just segment the text (no evaluation)')
-    parser.add_argument('--version', action='version', version='1.9.0')
+    parser.add_argument('--version', action='version', version='1.9.1')
 
     return parser.parse_args()
 
@@ -273,18 +280,22 @@ def main():
     iters = args.iterations
     logging.info(f'Sampling {iters:d} iterations.')
 
+    hier_models = ['htl', 'uni_htl', 'alt_htl', 'sim_htl'] # All HTL models
+
     # Hyperparameter sampling initialisation
     hyp_sample = args.sample_hyperparameter
     if hyp_sample:
         logging.info(' Hyperparameter sampled after each iteration.')
         # dpseg or pypseg model?
-        dpseg = bool(model_name in ['dpseg', 'htl', 'uni_htl']) #== 'dpseg')
+        #dpseg = bool(model_name in ['dpseg', 'htl', 'uni_htl']) #== 'dpseg')
+        dpseg = bool((model_name == 'dpseg') or (model_name in hier_models))
         # For dpseg only
         #alpha_sample = Concentration_sampling((1, 1), rnd_seed)
         # For both dpseg and pypseg
         hyperparam_sample = Hyperparameter_sampling((1, 1), (1, 1),
                                                     rnd_seed, dpseg)
-        if model_name in ['htl', 'uni_htl']: #== 'htl':
+        if model_name in hier_models: #['htl', 'uni_htl']: #== 'htl':
+            logging.info(' + Hyperparameter also sampled for morphemes.')
             morph_hyper_sample = Hyperparameter_sampling((1, 1), (1, 1),
                 rnd_seed, dpseg, morph=True)
     if args.online != 'none':
@@ -293,9 +304,13 @@ def main():
             logging.info(f' Every {args.online_batch} sentences, '
                          f'{args.online_iter} iterations.')
 
+    morpheme_sample = False # For additional morpheme sampling
     if model_name == 'sim_htl':
-        logging.info(f'Additional sampling of word types for {args.htl_iter} '
-                     'iterations')
+        htl_iter = args.htl_iter
+        if (args.htl_batch > 0) and (htl_iter > 0):
+            morpheme_sample = True
+            logging.info(f'Every {args.htl_batch} sentences, additional '
+                         f'sampling of word types for {htl_iter} iterations')
 
     logging.info('Evaluating a sample')
 
@@ -335,16 +350,20 @@ def main():
             utils.check_n_type_token(main_state, args)
 
         # Update morpheme boundaries
-        if (model_name == 'sim_htl') and (args.htl_iter > 0) and ((i % 5) == 0):
-            logging.info('Sampling word types for morphemes')
-            for j in range(args.htl_iter):
+        if morpheme_sample and ((i % args.htl_batch) == 0):
+            #(model_name == 'sim_htl') and (htl_iter > 0)
+            #logging.info('Sampling word types for morphemes')
+            #print(f'Old seg. dictionary: {main_state.seen_word_seg.word_seg}')
+            for j in range(htl_iter):
                 main_state.sample_word_types(temp)
+            #print(f'New seg. dictionary: {main_state.seen_word_seg.word_seg}')
+            main_state.update_morpheme_segmentation()
         # Hyperparameter sampling
         if hyp_sample:
             #main_state.alpha_1 = alpha_sample.sample_concentration(main_state)
             main_state.alpha_1, main_state.discount = \
                     hyperparam_sample.sample_hyperparameter(main_state)
-            if model_name in ['htl', 'uni_htl']: #== 'htl':
+            if model_name in hier_models: #['htl', 'uni_htl']: #== 'htl':
                 main_state.alpha_m, main_state.discount_m = \
                         morph_hyper_sample.sample_hyperparameter(main_state)
 
@@ -352,7 +371,7 @@ def main():
         logging.debug(f'Final value of alpha: {main_state.alpha_1:.1f}')
         if (model_name == 'pypseg'):
             logging.debug(f'Final value of d: {main_state.discount:.3f}')
-        elif model_name in ['htl', 'uni_htl']:
+        elif model_name in hier_models: #['htl', 'uni_htl']:
             logging.debug(f'Final value of alpha: {main_state.alpha_m:.1f} '
                           '(morpheme)')
             print(f'dpseg status: {hyperparam_sample.dpseg}, '
