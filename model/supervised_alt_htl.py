@@ -82,6 +82,13 @@ class SupervisedSimpleAltHTLState(SimpleAltHierarchicalTwoLevelState):
             if self.sup.boundary_method == 'sentence':
                 supervision_bool = True
                 supervision_index = self.sup.supervision_index(len_unsegmented)
+                # For additional morpheme segmentation
+                split_data_word = utils.text_to_line(self.data_word)
+                sup_sentence = split_data_word[0:int(supervision_index)]
+                sup_words = utils.flatten_2D([utils.line_to_word(line)
+                            for line in sup_sentence])
+                self.unique_sup_words = set(sup_words)
+                self.sample_word_types = self.sample_word_types_sentence
             for i in range(len_unsegmented):
                 if (self.sup.boundary_method == 'sentence') \
                     and (i >= supervision_index): # End of supervision
@@ -384,6 +391,61 @@ class SupervisedSimpleAltHTLState(SimpleAltHierarchicalTwoLevelState):
 
     # Sampling
     #def sample(self, temp):
+
+    #def sample_word_types(self, temp):
+
+    def sample_word_types_sentence(self, temp):
+        '''Sample the word types for morphemes with sentence supervision.'''
+        # Avoid key issues
+        word_type_list = list(self.seen_word_seg.word_seg.keys())
+        word_type_list.sort()
+        assert (set(word_type_list) ==
+        set(self.restaurant.restaurant.keys())), ('All the seen words are not '
+        'in the restaurant.')
+        #print('Resample')
+        #print(f'Word list: {word_type_list}')
+        #print(f'Segmentation dictionary: {self.seen_word_seg.word_seg}')
+        # For words in the supervision sentences
+        new_word_type_list = [word for word in word_type_list
+                              if word not in self.unique_sup_words]
+        for word_type in new_word_type_list:
+            #print('\nword_type', word_type)
+            assert (word_type in self.restaurant.restaurant), (
+            f'{word_type} not in restaurant')
+            morpheme_boundaries = self.seen_word_seg.word_seg[word_type]
+            word = SimpleAltHierarchicalWord(word_type, morpheme_boundaries)
+            # Remove the word (and morpheme)
+            #print(f'Before: {word.morpheme_list}')
+            #print(f'Segmentation boundaries: {morpheme_boundaries}')
+            #print(f'Segmentation boundaries: {word.line_boundaries}')
+            remove_word  = self.seen_word_seg.remove_word_and_seg(word_type,
+                                morpheme_boundaries)
+            #print(f'Remove word: {remove_word}')
+            #print(f'Word restaurant: {self.restaurant.restaurant}')
+            #print(f'Morpheme restaurant: {self.restaurant_m.restaurant}')
+            #if remove_word:
+                #print(f'Removed word: {word.sentence}, {word.line_boundaries}')
+            word.remove_morphemes(self.restaurant_m) #
+            # Sampling
+            word.sample_word(self, temp)
+            word.morpheme_list = word.decompose()
+            #print(f'New decompostion: {word.morpheme_list}')
+            # Add the word (and morpheme)
+            add_word = self.seen_word_seg.add_word_and_seg(
+                        word.sentence, word.line_boundaries)
+            #print(f'New segmentation: {word.line_boundaries}')
+            #print(f'Add word: {add_word}\n')
+            # Add the selected morphemes in the morpheme restaurant
+            #if add_word:
+                #print(f'Added word: {word.sentence}, {word.line_boundaries}')
+                #self.morpheme_update[self.morpheme_update_index] += 1 # Count updates
+            word.add_morphemes(self.restaurant_m) #
+            for morph in word.morpheme_list:
+                assert (morph in self.restaurant_m.restaurant), (
+                    f'{morph} not in restaurant.') #
+        #print(f'New segmentation dictionary: {self.seen_word_seg.word_seg}')
+
+    #def update_morpheme_segmentation(self):
 
     #def get_segmented(self):
 
