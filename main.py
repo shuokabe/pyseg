@@ -121,7 +121,7 @@ def parse_args():
 
     parser.add_argument('--just_seg', default=False, type=bool,
                         help='just segment the text (no evaluation)')
-    parser.add_argument('--version', action='version', version='1.9.1')
+    parser.add_argument('--version', action='version', version='1.9.2')
 
     return parser.parse_args()
 
@@ -429,8 +429,9 @@ def main():
         else:
             segmented_text = main_state.get_two_level_segmentation()
         if model_name == 'sim_htl':
+            pass
             print(f'Morphemes sampled from scratch: {main_state.morpheme_scratch}')
-            print(f'Morpheme update number: {main_state.morpheme_update}')
+            #print(f'Morpheme update number: {main_state.morpheme_update}')
         # Output file (log + segmented text)
         output_file = args.output_file_base + '.txt'
         with open(output_file, 'w',  encoding = 'utf8') as out_text:

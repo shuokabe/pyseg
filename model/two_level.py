@@ -73,6 +73,7 @@ class TwoLevelState(State):
         self.alphabet_size = self.word_state.alphabet_size # For main.py
 
         logging.info(' Hyperparameter sampled after each iteration.')
+        logging.info(' + Hyperparameter also sampled for morphemes.')
         self.word_hyper_sample = Hyperparameter_sampling((1, 1), (1, 1), seed, True)
         self.morph_hyper_sample = Hyperparameter_sampling((1, 1), (1, 1), seed, True)
 

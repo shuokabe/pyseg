@@ -37,7 +37,16 @@ Supervision parameter arguments:
 - `online_batch`: the number of sentences after which Gibbs sampling is carried out for online learning (0 by default)
 - `online_iter`: the number of iterations for online learning (0 by default)
 
+Two-level segmentation arguments:
+- `alpha_m` (or -am): the concentration parameter value for the morpheme level in hierarchical models (20 by default)
+- `discount_m` (or -dm): the discount parameter for the morpheme level in hierarchical models (0.5 by default)
+- `htl_level`: the supervision level for the hierarchical models (none by default)
+- `htl_batch`: the batch size for the hier_iter model (0 by default)
+- `htl_iter`: the number of additional iterations for the morpheme level in the hier_iter model (0 by default)
+- `just_seg`: the boolean parameter to carry out segmentation only (without evaluation) (False by default)
+
 Other:
+- `verbose` (or -v): verbosity of the output (False by default)
 - `version`: version number
 
 ### Example
@@ -53,6 +62,27 @@ If a dpseg model is run on the same file (file.txt) and with the same parameters
 python3 pyseg/main.py -m dpseg -i 1000 -o sup_pydpseg -r 42 --dictionary_file dictionary.pickle --dictionary_method mixture --dictionary_parameter 0.25 file.txt
 ```
 Moreover, here, the output file will not be called output.txt but sup_pydpseg.txt.
+
+## Name correspondence
+The names in the paper and in the code do not match (yet). The list below displays the corresponding name in the code for a given name from the paper (name_in_paper: equivalent_in_code).
+
+Models:
+- parallel-w/parallel-m: two_level
+- hier_type: sim_htl
+- hier_iter: sim_htl with positive values of parameters htl_batch and htl_iter
+- pipeline and htl_final: use of the `just_seg` parameter
+
+Weak supervision:
+- gs.sparse: supervision_boundary set to true
+- gs.dense: supervision_boundary set to sentence
+- d.count: supervision_method set to naive
+- d.mix: supervision_method set to mixture
+- d.2gram: supervision_method set to init_bigram
+- d.mix+2gram: supervision_method set to mixture_bigram
+
+Online learning:
+- o.regular: with
+- o.2level: bigram
 
 ## Citation
 If you use pyseg, please use the following citation (from ACL Anthology):
